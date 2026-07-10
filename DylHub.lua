@@ -10,7 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 --// ========== INTERNAL STORAGE ==========
-local Windows = {}   -- <--- THIS WAS MISSING (caused the error)
+local Windows = {}
 
 --// ========== LIBRARY CORE ==========
 local Library = {}
@@ -40,10 +40,10 @@ local function Clamp(v, min, max) return math.max(min, math.min(max, v)) end
 local function Round(v) return math.floor(v + 0.5) end
 
 --// ============================================================
---//                COMPONENT CREATORS (defined first)
+--//                COMPONENT CREATORS
 --// ============================================================
 
---// BUTTON (preserves exact text style)
+--// BUTTON
 local function CreateButton(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or "Button"
@@ -559,7 +559,7 @@ function Library:CreateWindow(options)
     MarbleCorner.CornerRadius = UDim.new(0, theme.CornerRadius)
     MarbleCorner.Parent = MarbleTexture
 
-    --// ===== HEADER (with shadow, no UIStroke) =====
+    --// ===== HEADER =====
     local HeaderShadow = Instance.new("Frame")
     HeaderShadow.Name = "HeaderShadow"
     HeaderShadow.AnchorPoint = Vector2.new(0.5,0)
@@ -813,6 +813,11 @@ function Library:CreateWindow(options)
         local tabTitle = options.Title or "Tab"
         local tabId = #self.Tabs + 1
 
+        -- Capture theme & assets from the window (self) for use inside api methods
+        local windowTheme = self.Theme
+        local windowGradient = MainGradient
+        local windowAssets = ASSETS
+
         -- Tab button (side panel)
         local Container = Instance.new("Frame")
         Container.Name = "TabContainer_"..tabId
@@ -847,13 +852,13 @@ function Library:CreateWindow(options)
         local btnc = Instance.new("UICorner")
         btnc.CornerRadius = UDim.new(0,10)
         btnc.Parent = btn
-        local btnGrad = MainGradient:Clone()
+        local btnGrad = windowGradient:Clone()
         btnGrad.Parent = btn
         local btnImg = Instance.new("ImageLabel")
         btnImg.Size = UDim2.fromScale(1,1)
         btnImg.BackgroundTransparency = 1
         btnImg.BorderSizePixel = 0
-        btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MarbleTexture.."&width=678&height=810&format=png"
+        btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..windowAssets.MarbleTexture.."&width=678&height=810&format=png"
         btnImg.ImageTransparency = 0.5
         btnImg.ScaleType = Enum.ScaleType.Stretch
         btnImg.ZIndex = 0
@@ -867,7 +872,7 @@ function Library:CreateWindow(options)
         txtShadow.Size = UDim2.fromScale(1,1)
         txtShadow.Position = UDim2.new(0,1, 0,1)
         txtShadow.BackgroundTransparency = 1
-        txtShadow.Font = self.Theme.Font
+        txtShadow.Font = windowTheme.Font
         txtShadow.Text = tabTitle
         txtShadow.TextScaled = true
         txtShadow.TextColor3 = Color3.fromRGB(0,0,0)
@@ -879,7 +884,7 @@ function Library:CreateWindow(options)
         mainTxt.Size = UDim2.fromScale(1,1)
         mainTxt.Position = UDim2.new(0,0, 0,0)
         mainTxt.BackgroundTransparency = 1
-        mainTxt.Font = self.Theme.Font
+        mainTxt.Font = windowTheme.Font
         mainTxt.Text = tabTitle
         mainTxt.TextScaled = true
         mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
@@ -930,28 +935,29 @@ function Library:CreateWindow(options)
         -- Return API methods
         local api = {}
 
+        -- Use windowTheme, windowGradient, windowAssets (captured above)
         function api:CreateButton(options)
-            return CreateButton(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateButton(options, contentFrame, windowTheme, windowGradient, windowAssets)
         end
 
         function api:CreateToggle(options)
-            return CreateToggle(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateToggle(options, contentFrame, windowTheme, windowGradient, windowAssets)
         end
 
         function api:CreateSlider(options)
-            return CreateSlider(options, contentFrame, self.Theme)
+            return CreateSlider(options, contentFrame, windowTheme)
         end
 
         function api:CreateTextbox(options)
-            return CreateTextbox(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateTextbox(options, contentFrame, windowTheme, windowGradient, windowAssets)
         end
 
         function api:CreateLabel(options)
-            return CreateLabel(options, contentFrame, self.Theme)
+            return CreateLabel(options, contentFrame, windowTheme)
         end
 
         function api:CreateSection(options)
-            return CreateSection(options, contentFrame, self.Theme)
+            return CreateSection(options, contentFrame, windowTheme)
         end
 
         -- If this is the first tab, activate it
@@ -963,22 +969,18 @@ function Library:CreateWindow(options)
     end
 
     function self:SwitchTab(id)
-        -- Deactivate all
         for _, tab in ipairs(self.Tabs) do
             tab.Content.Visible = false
-            tab.MainText.TextColor3 = Color3.fromRGB(255,255,255) -- reset
+            tab.MainText.TextColor3 = Color3.fromRGB(255,255,255)
             tab.Active = false
         end
-        -- Activate selected
         local tab = self.Tabs[id]
         if tab then
             tab.Content.Visible = true
-            tab.MainText.TextColor3 = self.Theme.HighlightColor -- gold
+            tab.MainText.TextColor3 = self.Theme.HighlightColor
             tab.Active = true
             self.ActiveTab = id
-            -- Update header with tab name
             self.TitleLabel.Text = tab.Title
-            -- Update content canvas
             self:UpdateContentCanvas()
         end
     end
@@ -1013,7 +1015,7 @@ function Library:CreateWindow(options)
         self.Gui:Destroy()
     end
 
-    table.insert(Windows, self)   -- <-- now Windows exists
+    table.insert(Windows, self)
     return self
 end
 
