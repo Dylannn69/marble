@@ -3,11 +3,14 @@
    All components, clean API, preserve button text style.
 --]]
 
---// ========== SERVICES (top) ==========
+--// ========== SERVICES ==========
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+
+--// ========== INTERNAL STORAGE ==========
+local Windows = {}   -- <--- THIS WAS MISSING (caused the error)
 
 --// ========== LIBRARY CORE ==========
 local Library = {}
@@ -769,7 +772,7 @@ function Library:CreateWindow(options)
         Theme = theme,
         Size = size,
         Position = pos,
-        SetHeader = function(text) TitleLabel.Text = text end,  -- public method
+        SetHeader = function(text) TitleLabel.Text = text end,
     }
 
     --// ===== MINIMIZE / RESTORE =====
@@ -1010,7 +1013,7 @@ function Library:CreateWindow(options)
         self.Gui:Destroy()
     end
 
-    table.insert(Windows, self)
+    table.insert(Windows, self)   -- <-- now Windows exists
     return self
 end
 
