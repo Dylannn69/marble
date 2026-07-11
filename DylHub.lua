@@ -7,7 +7,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
 --// ========== INTERNAL STORAGE ==========
 local Windows = {}
@@ -178,7 +177,6 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = container
 
-    -- FIX: Changed from Frame to TextButton (so it can be clicked)
     local switchBg = Instance.new("TextButton")
     switchBg.Size = UDim2.new(0, 50, 0, 26)
     switchBg.Position = UDim2.new(1, -60, 0.5, -13)
@@ -223,7 +221,6 @@ local function CreateToggle(options, parent, theme, gradient, assets)
         callback(state)
     end
 
-    -- Now MouseButton1Click works because switchBg is a TextButton
     switchBg.MouseButton1Click:Connect(function()
         setState(not state, true)
     end)
@@ -244,7 +241,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     return obj
 end
 
---// SLIDER
+--// SLIDER (FIXED: knob is now a TextButton)
 local function CreateSlider(options, parent, theme)
     options = options or {}
     local text = options.Text or "Slider"
@@ -300,11 +297,14 @@ local function CreateSlider(options, parent, theme)
     fc.CornerRadius = UDim.new(1,0)
     fc.Parent = fill
 
-    local knob = Instance.new("Frame")
+    -- FIX: knob is now a TextButton
+    local knob = Instance.new("TextButton")
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
     knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
     knob.BorderSizePixel = 0
+    knob.Text = ""
+    knob.AutoButtonColor = false
     knob.Parent = track
     local kc = Instance.new("UICorner")
     kc.CornerRadius = UDim.new(1,0)
@@ -817,12 +817,10 @@ function Library:CreateWindow(options)
         local tabTitle = options.Title or "Tab"
         local tabId = #self.Tabs + 1
 
-        -- Capture theme & assets from the window for use inside api methods
         local windowTheme = self.Theme
         local windowGradient = MainGradient
         local windowAssets = ASSETS
 
-        -- Tab button (side panel)
         local Container = Instance.new("Frame")
         Container.Name = "TabContainer_"..tabId
         Container.Size = UDim2.new(0.9, 0, 0, 42)
@@ -871,7 +869,6 @@ function Library:CreateWindow(options)
         bic.CornerRadius = UDim.new(0,10)
         bic.Parent = btnImg
 
-        -- Text shadow + main
         local txtShadow = Instance.new("TextLabel")
         txtShadow.Size = UDim2.fromScale(1,1)
         txtShadow.Position = UDim2.new(0,1, 0,1)
@@ -896,7 +893,6 @@ function Library:CreateWindow(options)
         mainTxt.ZIndex = 3
         mainTxt.Parent = btn
 
-        -- Content frame for this tab
         local contentFrame = Instance.new("Frame")
         contentFrame.Name = "TabContent_"..tabId
         contentFrame.Size = UDim2.new(1,0, 1,0)
@@ -916,7 +912,6 @@ function Library:CreateWindow(options)
         tabPad.PaddingRight = UDim.new(0,8)
         tabPad.Parent = contentFrame
 
-        -- Tab object
         local tabObj = {
             Id = tabId,
             Title = tabTitle,
@@ -928,7 +923,6 @@ function Library:CreateWindow(options)
             Active = false,
         }
 
-        -- Click to switch tab
         btn.MouseButton1Click:Connect(function()
             self:SwitchTab(tabId)
         end)
@@ -936,7 +930,6 @@ function Library:CreateWindow(options)
         table.insert(self.Tabs, tabObj)
         self:UpdateCanvas()
 
-        -- Return API methods
         local api = {}
 
         function api:CreateButton(options)
@@ -963,7 +956,6 @@ function Library:CreateWindow(options)
             return CreateSection(options, contentFrame, windowTheme)
         end
 
-        -- If this is the first tab, activate it
         if #self.Tabs == 1 then
             self:SwitchTab(1)
         end
