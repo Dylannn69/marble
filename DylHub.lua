@@ -154,7 +154,7 @@ local function CreateButton(options, parent, theme, gradient, assets)
     return obj
 end
 
---// TOGGLE
+--// TOGGLE (FIXED: switchBg is now a TextButton)
 local function CreateToggle(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or "Toggle"
@@ -178,11 +178,14 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = container
 
-    local switchBg = Instance.new("Frame")
+    -- FIX: Changed from Frame to TextButton (so it can be clicked)
+    local switchBg = Instance.new("TextButton")
     switchBg.Size = UDim2.new(0, 50, 0, 26)
     switchBg.Position = UDim2.new(1, -60, 0.5, -13)
     switchBg.BackgroundColor3 = default and Color3.fromRGB(110,45,220) or Color3.fromRGB(80,80,90)
     switchBg.BorderSizePixel = 0
+    switchBg.Text = ""
+    switchBg.AutoButtonColor = false
     switchBg.Parent = container
     local sbc = Instance.new("UICorner")
     sbc.CornerRadius = UDim.new(1,0)
@@ -220,6 +223,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
         callback(state)
     end
 
+    -- Now MouseButton1Click works because switchBg is a TextButton
     switchBg.MouseButton1Click:Connect(function()
         setState(not state, true)
     end)
@@ -813,7 +817,7 @@ function Library:CreateWindow(options)
         local tabTitle = options.Title or "Tab"
         local tabId = #self.Tabs + 1
 
-        -- Capture theme & assets from the window (self) for use inside api methods
+        -- Capture theme & assets from the window for use inside api methods
         local windowTheme = self.Theme
         local windowGradient = MainGradient
         local windowAssets = ASSETS
@@ -935,7 +939,6 @@ function Library:CreateWindow(options)
         -- Return API methods
         local api = {}
 
-        -- Use windowTheme, windowGradient, windowAssets (captured above)
         function api:CreateButton(options)
             return CreateButton(options, contentFrame, windowTheme, windowGradient, windowAssets)
         end
