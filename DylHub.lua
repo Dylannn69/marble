@@ -241,7 +241,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     return obj
 end
 
---// SLIDER (FIXED: knob is now a TextButton)
+--// SLIDER (FULLY FIXED: track and knob are now TextButtons)
 local function CreateSlider(options, parent, theme)
     options = options or {}
     local text = options.Text or "Slider"
@@ -278,11 +278,14 @@ local function CreateSlider(options, parent, theme)
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
     valueLabel.Parent = container
 
-    local track = Instance.new("Frame")
+    -- FIX: track is now a TextButton so MouseButton1Click works
+    local track = Instance.new("TextButton")
     track.Size = UDim2.new(1, 0, 0, 6)
     track.Position = UDim2.new(0, 0, 0.7, 0)
     track.BackgroundColor3 = Color3.fromRGB(60,60,70)
     track.BorderSizePixel = 0
+    track.Text = ""
+    track.AutoButtonColor = false
     track.Parent = container
     local tc = Instance.new("UICorner")
     tc.CornerRadius = UDim.new(1,0)
@@ -297,7 +300,7 @@ local function CreateSlider(options, parent, theme)
     fc.CornerRadius = UDim.new(1,0)
     fc.Parent = fill
 
-    -- FIX: knob is now a TextButton
+    -- FIX: knob is now a TextButton so MouseButton1Down works
     local knob = Instance.new("TextButton")
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
