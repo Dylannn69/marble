@@ -153,7 +153,7 @@ local function CreateButton(options, parent, theme, gradient, assets)
     return obj
 end
 
---// TOGGLE (FIXED: switchBg is now a TextButton)
+--// TOGGLE
 local function CreateToggle(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or "Toggle"
@@ -241,7 +241,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     return obj
 end
 
---// SLIDER (FULLY FIXED: track and knob are now TextButtons)
+--// SLIDER (FULLY FIXED)
 local function CreateSlider(options, parent, theme)
     options = options or {}
     local text = options.Text or "Slider"
@@ -278,7 +278,7 @@ local function CreateSlider(options, parent, theme)
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
     valueLabel.Parent = container
 
-    -- FIX: track is now a TextButton so MouseButton1Click works
+    -- track is now a TextButton
     local track = Instance.new("TextButton")
     track.Size = UDim2.new(1, 0, 0, 6)
     track.Position = UDim2.new(0, 0, 0.7, 0)
@@ -300,7 +300,7 @@ local function CreateSlider(options, parent, theme)
     fc.CornerRadius = UDim.new(1,0)
     fc.Parent = fill
 
-    -- FIX: knob is now a TextButton so MouseButton1Down works
+    -- knob is now a TextButton
     local knob = Instance.new("TextButton")
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
@@ -779,7 +779,13 @@ function Library:CreateWindow(options)
         Theme = theme,
         Size = size,
         Position = pos,
-        SetHeader = function(text) TitleLabel.Text = text end,
+        SetHeader = function(text)
+            -- FIX: Handle both strings and tables safely
+            if type(text) == "table" then
+                text = text.Text or text[1] or "Window"
+            end
+            TitleLabel.Text = tostring(text)
+        end,
     }
 
     --// ===== MINIMIZE / RESTORE =====
