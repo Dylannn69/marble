@@ -1,6 +1,6 @@
 --[[
-   UI Library – Full Width Components with Proper Spacing
-   Left-aligned labels, right-aligned controls, shadows on everything
+   UI Library – LoadString Ready
+   All components are horizontal, full-width, with shadows
 --]]
 
 --// ========== SERVICES ==========
@@ -22,7 +22,7 @@ local ASSETS = {
     MinimizedImage = "103591022804634",
 }
 
---// ========== THEME ==========
+--// ========== THEME (adjustable, colors locked) ==========
 Library.Theme = {
     Font = Enum.Font.Bangers,
     CornerRadius = 20,
@@ -32,134 +32,139 @@ Library.Theme = {
     AccentColor = Color3.fromRGB(110,45,220),
     TextColor = Color3.fromRGB(255,255,255),
     HighlightColor = Color3.fromRGB(255,215,0),
-    ToggleOnColor = Color3.fromRGB(76, 175, 80),
-    ToggleOffColor = Color3.fromRGB(244, 67, 54),
+    ToggleOnColor = Color3.fromRGB(0, 200, 80),   -- Green when ON
+    ToggleOffColor = Color3.fromRGB(200, 50, 50), -- Red when OFF
 }
 
 --// ========== UTILITY ==========
 local function Clamp(v, min, max) return math.max(min, math.min(max, v)) end
 local function Round(v) return math.floor(v + 0.5) end
 
+--// ========== SHADOW HELPER ==========
+local function CreateShadow(parent, size, offsetX, offsetY, transparency)
+    local shadow = Instance.new("Frame")
+    shadow.Size = size
+    shadow.Position = UDim2.new(0, offsetX or 2, 0, offsetY or 4)
+    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    shadow.BackgroundTransparency = transparency or 0.3
+    shadow.BorderSizePixel = 0
+    shadow.ZIndex = 0
+    shadow.Parent = parent
+    return shadow
+end
+
 --// ============================================================
---//                COMPONENT CREATORS
+--//                COMPONENT CREATORS (Full Width)
 --// ============================================================
 
---// BUTTON (Full Width - Label Left, Button Right)
+--// BUTTON (Full Width with Shadow)
 local function CreateButton(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or "Button"
     local callback = options.Callback or function() end
 
+    -- Container (full width)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 52)
+    container.Size = UDim2.new(1, -10, 0, 50) -- Full width with small padding
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
 
-    -- Shadow
-    local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1, 0, 0, 42)
-    shadow.Position = UDim2.new(0, 2, 0, 4)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 0.3
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = 0
-    shadow.Parent = container
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 10)
-    sc.Parent = shadow
+    -- Button Shadow
+    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 10)
+    shadowCorner.Parent = shadow
 
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 0, 42)
-    bg.Position = UDim2.new(0, 0, 0, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bg.BackgroundTransparency = 0.15
-    bg.BorderSizePixel = 0
-    bg.Parent = container
-    local bgc = Instance.new("UICorner")
-    bgc.CornerRadius = UDim.new(0, 10)
-    bgc.Parent = bg
-
-    -- Label (left side)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.5, 0, 1, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Font = theme.Font
-    label.Text = text
-    label.TextScaled = true
-    label.TextColor3 = theme.TextColor
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = bg
-
-    -- Button (right side)
+    -- Button
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.35, 0, 0.8, 0)
-    btn.Position = UDim2.new(0.63, 0, 0.1, 0)
+    btn.Size = UDim2.new(1, 0, 0, 42)
+    btn.Position = UDim2.new(0, 0, 0, 0)
     btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
     btn.BackgroundTransparency = 0.3
     btn.BorderSizePixel = 0
-    btn.Text = "Click"
-    btn.Font = theme.Font
-    btn.TextScaled = true
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = ""
     btn.ZIndex = 1
-    btn.Parent = bg
+    btn.Parent = container
+    local bc = Instance.new("UICorner")
+    bc.CornerRadius = UDim.new(0, 10)
+    bc.Parent = btn
+    local grad = gradient:Clone()
+    grad.Parent = btn
+    local img = Instance.new("ImageLabel")
+    img.Size = UDim2.fromScale(1,1)
+    img.BackgroundTransparency = 1
+    img.BorderSizePixel = 0
+    img.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..assets.MarbleTexture.."&width=678&height=810&format=png"
+    img.ImageTransparency = 0.5
+    img.ScaleType = Enum.ScaleType.Stretch
+    img.ZIndex = 0
+    img.Parent = btn
+    local ic = Instance.new("UICorner")
+    ic.CornerRadius = UDim.new(0, 10)
+    ic.Parent = img
 
-    -- Button corner
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 10)
-    btnCorner.Parent = btn
+    -- Text shadow
+    local txtShad = Instance.new("TextLabel")
+    txtShad.Size = UDim2.fromScale(1,1)
+    txtShad.Position = UDim2.new(0, 1, 0, 1)
+    txtShad.BackgroundTransparency = 1
+    txtShad.Font = theme.Font
+    txtShad.Text = text
+    txtShad.TextScaled = true
+    txtShad.TextColor3 = Color3.fromRGB(0,0,0)
+    txtShad.TextTransparency = 0.5
+    txtShad.ZIndex = 2
+    txtShad.Parent = btn
 
-    -- Button gradient
-    local btnGrad = gradient:Clone()
-    btnGrad.Parent = btn
-
-    -- Button marble
-    local btnImg = Instance.new("ImageLabel")
-    btnImg.Size = UDim2.fromScale(1,1)
-    btnImg.BackgroundTransparency = 1
-    btnImg.BorderSizePixel = 0
-    btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..assets.MarbleTexture.."&width=678&height=810&format=png"
-    btnImg.ImageTransparency = 0.5
-    btnImg.ScaleType = Enum.ScaleType.Stretch
-    btnImg.ZIndex = 0
-    btnImg.Parent = btn
-    local bic = Instance.new("UICorner")
-    bic.CornerRadius = UDim.new(0, 10)
-    bic.Parent = btnImg
-
-    -- Button shadow
-    local btnShadow = Instance.new("Frame")
-    btnShadow.Size = UDim2.new(1, 0, 1, 0)
-    btnShadow.Position = UDim2.new(0, 2, 0, 3)
-    btnShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    btnShadow.BackgroundTransparency = 0.3
-    btnShadow.BorderSizePixel = 0
-    btnShadow.ZIndex = 0
-    btnShadow.Parent = btn
-    local bsc = Instance.new("UICorner")
-    bsc.CornerRadius = UDim.new(0, 10)
-    bsc.Parent = btnShadow
+    local mainTxt = Instance.new("TextLabel")
+    mainTxt.Size = UDim2.fromScale(1,1)
+    mainTxt.Position = UDim2.new(0, 0, 0, 0)
+    mainTxt.BackgroundTransparency = 1
+    mainTxt.Font = theme.Font
+    mainTxt.Text = text
+    mainTxt.TextScaled = true
+    mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
+    mainTxt.TextTransparency = 0
+    mainTxt.ZIndex = 3
+    mainTxt.Parent = btn
 
     btn.MouseButton1Click:Connect(function()
-        btn:TweenSize(UDim2.new(0.35, 0, 0.7, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        btn.Position = UDim2.new(0.63, 0, 0.15, 0)
+        mainTxt.TextColor3 = theme.HighlightColor
+        btn:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        btn.Position = UDim2.new(0, 0, 0, 2)
+        shadow:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        shadow.Position = UDim2.new(0, 2, 0, 2)
         task.wait(0.08)
-        btn:TweenSize(UDim2.new(0.35, 0, 0.8, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        btn.Position = UDim2.new(0.63, 0, 0.1, 0)
+        btn:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        btn.Position = UDim2.new(0, 0, 0, 0)
+        shadow:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        shadow.Position = UDim2.new(0, 2, 0, 4)
         callback()
     end)
 
     local obj = {
-        SetText = function(newText) label.Text = newText end,
-        SetCallback = function(newCallback) callback = newCallback end,
-        Destroy = function() container:Destroy() end
+        SetText = function(newText)
+            txtShad.Text = newText
+            mainTxt.Text = newText
+        end,
+        SetCallback = function(newCallback)
+            callback = newCallback
+        end,
+        Highlight = function()
+            mainTxt.TextColor3 = theme.HighlightColor
+        end,
+        Unhighlight = function()
+            mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
+        end,
+        Destroy = function()
+            container:Destroy()
+        end
     }
     return obj
 end
 
---// TOGGLE (Full Width - Label Left, Toggle Right)
+--// TOGGLE BUTTON (Green ON / Red OFF with text)
 local function CreateToggle(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or "Toggle"
@@ -167,79 +172,35 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 52)
+    container.Size = UDim2.new(1, -10, 0, 50)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
 
     -- Shadow
-    local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1, 0, 0, 42)
-    shadow.Position = UDim2.new(0, 2, 0, 4)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 0.3
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = 0
-    shadow.Parent = container
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 10)
-    sc.Parent = shadow
+    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 10)
+    shadowCorner.Parent = shadow
 
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 0, 42)
-    bg.Position = UDim2.new(0, 0, 0, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bg.BackgroundTransparency = 0.15
-    bg.BorderSizePixel = 0
-    bg.Parent = container
-    local bgc = Instance.new("UICorner")
-    bgc.CornerRadius = UDim.new(0, 10)
-    bgc.Parent = bg
-
-    -- Label (left side)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.5, 0, 1, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Font = theme.Font
-    label.Text = text
-    label.TextScaled = true
-    label.TextColor3 = theme.TextColor
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = bg
-
-    -- Toggle button (right side)
+    -- Toggle Button (full width)
     local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
-    toggleBtn.Position = UDim2.new(0.73, 0, 0.1, 0)
-    toggleBtn.BackgroundColor3 = default and theme.ToggleOnColor or theme.ToggleOffColor
-    toggleBtn.BackgroundTransparency = 0.2
+    toggleBtn.Size = UDim2.new(1, 0, 0, 42)
+    toggleBtn.Position = UDim2.new(0, 0, 0, 0)
     toggleBtn.BorderSizePixel = 0
-    toggleBtn.Text = default and "ON" or "OFF"
-    toggleBtn.Font = theme.Font
-    toggleBtn.TextScaled = true
-    toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    toggleBtn.Text = ""
+    toggleBtn.AutoButtonColor = false
     toggleBtn.ZIndex = 1
-    toggleBtn.Parent = bg
+    toggleBtn.Parent = container
+    local tbc = Instance.new("UICorner")
+    tbc.CornerRadius = UDim.new(0, 10)
+    tbc.Parent = toggleBtn
 
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 10)
-    toggleCorner.Parent = toggleBtn
+    -- Gradient
+    local toggleGrad = gradient:Clone()
+    toggleGrad.Parent = toggleBtn
 
-    -- Toggle shadow
-    local toggleShadow = Instance.new("Frame")
-    toggleShadow.Size = UDim2.new(1, 0, 1, 0)
-    toggleShadow.Position = UDim2.new(0, 2, 0, 3)
-    toggleShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    toggleShadow.BackgroundTransparency = 0.3
-    toggleShadow.BorderSizePixel = 0
-    toggleShadow.ZIndex = 0
-    toggleShadow.Parent = toggleBtn
-    local tsc = Instance.new("UICorner")
-    tsc.CornerRadius = UDim.new(0, 10)
-    tsc.Parent = toggleShadow
-
-    -- Toggle marble
+    -- Marble overlay
     local toggleImg = Instance.new("ImageLabel")
     toggleImg.Size = UDim2.fromScale(1,1)
     toggleImg.BackgroundTransparency = 1
@@ -253,40 +214,81 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     tic.CornerRadius = UDim.new(0, 10)
     tic.Parent = toggleImg
 
+    -- Label (left side)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = theme.Font
+    label.Text = text
+    label.TextScaled = true
+    label.TextColor3 = theme.TextColor
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 2
+    label.Parent = toggleBtn
+
+    -- Status text (right side) - shows "ON" or "OFF"
+    local statusText = Instance.new("TextLabel")
+    statusText.Size = UDim2.new(0.2, 0, 1, 0)
+    statusText.Position = UDim2.new(0.8, -10, 0, 0)
+    statusText.BackgroundTransparency = 1
+    statusText.Font = theme.Font
+    statusText.Text = default and "ON" or "OFF"
+    statusText.TextScaled = true
+    statusText.TextColor3 = default and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 50, 50)
+    statusText.TextXAlignment = Enum.TextXAlignment.Right
+    statusText.ZIndex = 2
+    statusText.Parent = toggleBtn
+
     local state = default
 
-    local function setState(newState)
+    local function setState(newState, animate)
         state = newState
         if state then
-            toggleBtn.BackgroundColor3 = theme.ToggleOnColor
-            toggleBtn.Text = "ON"
+            statusText.Text = "ON"
+            statusText.TextColor3 = Color3.fromRGB(0, 200, 80) -- Green
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 60)
+            toggleBtn.BackgroundTransparency = 0.3
         else
-            toggleBtn.BackgroundColor3 = theme.ToggleOffColor
-            toggleBtn.Text = "OFF"
+            statusText.Text = "OFF"
+            statusText.TextColor3 = Color3.fromRGB(200, 50, 50) -- Red
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+            toggleBtn.BackgroundTransparency = 0.3
         end
         callback(state)
     end
 
     toggleBtn.MouseButton1Click:Connect(function()
-        toggleBtn:TweenSize(UDim2.new(0.25, 0, 0.7, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        toggleBtn.Position = UDim2.new(0.73, 0, 0.15, 0)
+        -- Press animation
+        toggleBtn:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        toggleBtn.Position = UDim2.new(0, 0, 0, 2)
+        shadow:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        shadow.Position = UDim2.new(0, 2, 0, 2)
         task.wait(0.08)
-        toggleBtn:TweenSize(UDim2.new(0.25, 0, 0.8, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        toggleBtn.Position = UDim2.new(0.73, 0, 0.1, 0)
-        setState(not state)
+        toggleBtn:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        toggleBtn.Position = UDim2.new(0, 0, 0, 0)
+        shadow:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        shadow.Position = UDim2.new(0, 2, 0, 4)
+        setState(not state, true)
     end)
 
-    setState(default)
+    setState(default, false)
 
     local obj = {
-        SetState = function(newState) setState(newState) end,
-        GetState = function() return state end,
-        Destroy = function() container:Destroy() end
+        SetState = function(newState)
+            setState(newState, true)
+        end,
+        GetState = function()
+            return state
+        end,
+        Destroy = function()
+            container:Destroy()
+        end
     }
     return obj
 end
 
---// SLIDER (Full Width - Label Left, Slider Right)
+--// SLIDER (Full Width with Shadow)
 local function CreateSlider(options, parent, theme)
     options = options or {}
     local text = options.Text or "Slider"
@@ -296,38 +298,14 @@ local function CreateSlider(options, parent, theme)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 60)
+    container.Size = UDim2.new(1, -10, 0, 65)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
 
-    -- Shadow
-    local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1, 0, 0, 50)
-    shadow.Position = UDim2.new(0, 2, 0, 4)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 0.3
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = 0
-    shadow.Parent = container
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 10)
-    sc.Parent = shadow
-
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 0, 50)
-    bg.Position = UDim2.new(0, 0, 0, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bg.BackgroundTransparency = 0.15
-    bg.BorderSizePixel = 0
-    bg.Parent = container
-    local bgc = Instance.new("UICorner")
-    bgc.CornerRadius = UDim.new(0, 10)
-    bgc.Parent = bg
-
-    -- Label (left)
+    -- Label
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.4, 0, 1, 0)
+    label.Size = UDim2.new(0.7, 0, 0.4, 0)
     label.Position = UDim2.new(0, 15, 0, 0)
     label.BackgroundTransparency = 1
     label.Font = theme.Font
@@ -335,33 +313,48 @@ local function CreateSlider(options, parent, theme)
     label.TextScaled = true
     label.TextColor3 = theme.TextColor
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = bg
+    label.Parent = container
 
-    -- Value (right side of slider)
+    -- Value display
     local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(0.12, 0, 0.5, 0)
-    valueLabel.Position = UDim2.new(0.88, -5, 0.25, 0)
+    valueLabel.Size = UDim2.new(0.2, 0, 0.4, 0)
+    valueLabel.Position = UDim2.new(0.8, -10, 0, 0)
     valueLabel.BackgroundTransparency = 1
     valueLabel.Font = theme.Font
     valueLabel.Text = tostring(default)
     valueLabel.TextScaled = true
     valueLabel.TextColor3 = theme.TextColor
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = bg
+    valueLabel.Parent = container
 
-    -- Track (center-right)
+    -- Track container (with shadow)
+    local trackContainer = Instance.new("Frame")
+    trackContainer.Size = UDim2.new(1, 0, 0, 24)
+    trackContainer.Position = UDim2.new(0, 0, 0.55, 0)
+    trackContainer.BackgroundTransparency = 1
+    trackContainer.BorderSizePixel = 0
+    trackContainer.Parent = container
+
+    -- Track shadow
+    local trackShadow = CreateShadow(trackContainer, UDim2.new(1, 0, 0, 6), 2, 3, 0.3)
+    local tsCorner = Instance.new("UICorner")
+    tsCorner.CornerRadius = UDim.new(1,0)
+    tsCorner.Parent = trackShadow
+
+    -- Track
     local track = Instance.new("TextButton")
-    track.Size = UDim2.new(0.45, 0, 0, 6)
-    track.Position = UDim2.new(0.42, 0, 0.7, 0)
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.Position = UDim2.new(0, 0, 0.5, -3)
     track.BackgroundColor3 = Color3.fromRGB(60,60,70)
     track.BorderSizePixel = 0
     track.Text = ""
     track.AutoButtonColor = false
-    track.Parent = bg
+    track.Parent = trackContainer
     local tc = Instance.new("UICorner")
     tc.CornerRadius = UDim.new(1,0)
     tc.Parent = track
 
+    -- Fill
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
     fill.BackgroundColor3 = Color3.fromRGB(110,45,220)
@@ -371,31 +364,33 @@ local function CreateSlider(options, parent, theme)
     fc.CornerRadius = UDim.new(1,0)
     fc.Parent = fill
 
-    -- Knob
-    local knob = Instance.new("TextButton")
-    knob.Size = UDim2.new(0, 18, 0, 18)
-    knob.Position = UDim2.new((default-min)/(max-min), -9, 0.5, -9)
-    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0
-    knob.Text = ""
-    knob.AutoButtonColor = false
-    knob.Parent = track
-    local kc = Instance.new("UICorner")
-    kc.CornerRadius = UDim.new(1,0)
-    kc.Parent = knob
-
     -- Knob shadow
     local knobShadow = Instance.new("Frame")
-    knobShadow.Size = UDim2.new(1, 0, 1, 0)
-    knobShadow.Position = UDim2.new(0, 1, 0, 2)
+    knobShadow.Size = UDim2.new(0, 18, 0, 18)
+    knobShadow.Position = UDim2.new((default-min)/(max-min), -9, 0.5, -9)
+    knobShadow.Position = UDim2.new((default-min)/(max-min), -9, 0.5, -9)
     knobShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
     knobShadow.BackgroundTransparency = 0.3
     knobShadow.BorderSizePixel = 0
     knobShadow.ZIndex = 0
-    knobShadow.Parent = knob
-    local ksc = Instance.new("UICorner")
-    ksc.CornerRadius = UDim.new(1,0)
-    ksc.Parent = knobShadow
+    knobShadow.Parent = trackContainer
+    local ksCorner = Instance.new("UICorner")
+    ksCorner.CornerRadius = UDim.new(1,0)
+    ksCorner.Parent = knobShadow
+
+    -- Knob
+    local knob = Instance.new("TextButton")
+    knob.Size = UDim2.new(0, 16, 0, 16)
+    knob.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.Text = ""
+    knob.AutoButtonColor = false
+    knob.ZIndex = 1
+    knob.Parent = trackContainer
+    local kc = Instance.new("UICorner")
+    kc.CornerRadius = UDim.new(1,0)
+    kc.Parent = knob
 
     local dragging = false
     local value = default
@@ -404,7 +399,8 @@ local function CreateSlider(options, parent, theme)
         value = Clamp(newVal, min, max)
         local percent = (value - min) / (max - min)
         fill.Size = UDim2.new(percent, 0, 1, 0)
-        knob.Position = UDim2.new(percent, -9, 0.5, -9)
+        knob.Position = UDim2.new(percent, -8, 0.5, -8)
+        knobShadow.Position = UDim2.new(percent, -9, 0.5, -9)
         valueLabel.Text = tostring(Round(value))
         callback(value)
     end
@@ -451,7 +447,7 @@ local function CreateSlider(options, parent, theme)
     return obj
 end
 
---// TEXTBOX (Full Width - Label Left, Input Right)
+--// TEXTBOX (Full Width with Shadow)
 local function CreateTextbox(options, parent, theme, gradient, assets)
     options = options or {}
     local text = options.Text or ""
@@ -459,51 +455,33 @@ local function CreateTextbox(options, parent, theme, gradient, assets)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 52)
+    container.Size = UDim2.new(1, -10, 0, 50)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
 
     -- Shadow
-    local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1, 0, 0, 42)
-    shadow.Position = UDim2.new(0, 2, 0, 4)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 0.3
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = 0
-    shadow.Parent = container
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 10)
-    sc.Parent = shadow
+    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 8)
+    shadowCorner.Parent = shadow
 
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 0, 42)
-    bg.Position = UDim2.new(0, 0, 0, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bg.BackgroundTransparency = 0.15
-    bg.BorderSizePixel = 0
-    bg.Parent = container
-    local bgc = Instance.new("UICorner")
-    bgc.CornerRadius = UDim.new(0, 10)
-    bgc.Parent = bg
-
-    -- Label (left)
+    -- Label
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.3, 0, 1, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
+    label.Size = UDim2.new(0.25, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
     label.Font = theme.Font
     label.Text = text
     label.TextScaled = true
     label.TextColor3 = theme.TextColor
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = bg
+    label.Parent = container
 
-    -- Input (right)
+    -- TextBox
     local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.5, 0, 0.8, 0)
-    box.Position = UDim2.new(0.48, 0, 0.1, 0)
+    box.Size = UDim2.new(0.7, 0, 1, 0)
+    box.Position = UDim2.new(0.3, -10, 0, 0)
     box.BackgroundColor3 = Color3.fromRGB(255,255,255)
     box.BackgroundTransparency = 0.2
     box.BorderSizePixel = 0
@@ -512,23 +490,10 @@ local function CreateTextbox(options, parent, theme, gradient, assets)
     box.TextScaled = true
     box.TextColor3 = Color3.fromRGB(180,180,190)
     box.PlaceholderText = placeholder
-    box.Parent = bg
+    box.Parent = container
     local bc = Instance.new("UICorner")
     bc.CornerRadius = UDim.new(0, 8)
     bc.Parent = box
-
-    -- Input shadow
-    local boxShadow = Instance.new("Frame")
-    boxShadow.Size = UDim2.new(1, 0, 1, 0)
-    boxShadow.Position = UDim2.new(0, 1, 0, 2)
-    boxShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    boxShadow.BackgroundTransparency = 0.2
-    boxShadow.BorderSizePixel = 0
-    boxShadow.ZIndex = 0
-    boxShadow.Parent = box
-    local bsc = Instance.new("UICorner")
-    bsc.CornerRadius = UDim.new(0, 8)
-    bsc.Parent = boxShadow
 
     box.FocusLost:Connect(function(enterPressed)
         if enterPressed then
@@ -550,40 +515,10 @@ local function CreateLabel(options, parent, theme)
     local text = options.Text or "Label"
     local isParagraph = options.Paragraph or false
 
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, isParagraph and 60 or 35)
-    container.BackgroundTransparency = 1
-    container.BorderSizePixel = 0
-    container.Parent = parent
-
-    -- Shadow
-    local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1, 0, 0, isParagraph and 50 or 28)
-    shadow.Position = UDim2.new(0, 2, 0, 3)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 0.2
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = 0
-    shadow.Parent = container
-    local sc = Instance.new("UICorner")
-    sc.CornerRadius = UDim.new(0, 10)
-    sc.Parent = shadow
-
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1, 0, 0, isParagraph and 50 or 28)
-    bg.Position = UDim2.new(0, 0, 0, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bg.BackgroundTransparency = 0.1
-    bg.BorderSizePixel = 0
-    bg.Parent = container
-    local bgc = Instance.new("UICorner")
-    bgc.CornerRadius = UDim.new(0, 10)
-    bgc.Parent = bg
-
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -20, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
+    label.Size = UDim2.new(1, -10, 0, isParagraph and 60 or 35)
     label.BackgroundTransparency = 1
+    label.BorderSizePixel = 0
     label.Font = theme.Font
     label.Text = text
     label.TextScaled = not isParagraph
@@ -591,11 +526,11 @@ local function CreateLabel(options, parent, theme)
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextYAlignment = isParagraph and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
     label.TextWrapped = isParagraph
-    label.Parent = bg
+    label.Parent = parent
 
     local obj = {
         SetText = function(newText) label.Text = newText end,
-        Destroy = function() container:Destroy() end
+        Destroy = function() label:Destroy() end
     }
     return obj
 end
@@ -606,7 +541,7 @@ local function CreateSection(options, parent, theme)
     local text = options.Text or ""
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, text ~= "" and 35 or 20)
+    container.Size = UDim2.new(1, -10, 0, 35)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -614,7 +549,7 @@ local function CreateSection(options, parent, theme)
     if text and text ~= "" then
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(0.35, 0, 1, 0)
-        label.Position = UDim2.new(0, 10, 0, 0)
+        label.Position = UDim2.new(0, 0, 0, 0)
         label.BackgroundTransparency = 1
         label.Font = theme.Font
         label.Text = text
@@ -625,15 +560,15 @@ local function CreateSection(options, parent, theme)
 
         local line = Instance.new("Frame")
         line.Size = UDim2.new(0.6, 0, 0, 2)
-        line.Position = UDim2.new(0.38, 0, 0.5, -1)
+        line.Position = UDim2.new(0.4, 0, 0.5, -1)
         line.BackgroundColor3 = theme.TextColor
         line.BackgroundTransparency = 0.5
         line.BorderSizePixel = 0
         line.Parent = container
     else
         local line = Instance.new("Frame")
-        line.Size = UDim2.new(0.95, 0, 0, 2)
-        line.Position = UDim2.new(0.025, 0, 0.5, -1)
+        line.Size = UDim2.new(1, 0, 0, 2)
+        line.Position = UDim2.new(0, 0, 0.5, -1)
         line.BackgroundColor3 = theme.TextColor
         line.BackgroundTransparency = 0.5
         line.BorderSizePixel = 0
@@ -653,7 +588,7 @@ end
 function Library:CreateWindow(options)
     options = options or {}
     local title = options.Title or "Window"
-    local size = options.Size or {0.4, 0.75}
+    local size = options.Size or {0.45, 0.75}
     local pos = options.Position or {0.5, 0.54}
     local theme = options.Theme or Library.Theme
 
@@ -893,10 +828,10 @@ function Library:CreateWindow(options)
     ContentArea.Parent = Main
 
     local ContentPad = Instance.new("UIPadding")
-    ContentPad.PaddingTop = UDim.new(0,15)
-    ContentPad.PaddingBottom = UDim.new(0,15)
-    ContentPad.PaddingLeft = UDim.new(0,15)
-    ContentPad.PaddingRight = UDim.new(0,15)
+    ContentPad.PaddingTop = UDim.new(0,10)
+    ContentPad.PaddingBottom = UDim.new(0,10)
+    ContentPad.PaddingLeft = UDim.new(0,10)
+    ContentPad.PaddingRight = UDim.new(0,10)
     ContentPad.Parent = ContentArea
 
     local ContentScroll = Instance.new("ScrollingFrame")
@@ -1069,8 +1004,8 @@ function Library:CreateWindow(options)
         local tabPad = Instance.new("UIPadding")
         tabPad.PaddingTop = UDim.new(0,4)
         tabPad.PaddingBottom = UDim.new(0,4)
-        tabPad.PaddingLeft = UDim.new(0,8)
-        tabPad.PaddingRight = UDim.new(0,8)
+        tabPad.PaddingLeft = UDim.new(0,4)
+        tabPad.PaddingRight = UDim.new(0,4)
         tabPad.Parent = contentFrame
 
         local tabObj = {
