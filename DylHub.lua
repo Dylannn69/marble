@@ -1,84 +1,125 @@
---[[
-   UI Library – LoadString Ready
-   All components are horizontal, full-width, with shadows
---]]
+-- // UI Library - ConceptUI
+-- // LoadString: https://raw.githubusercontent.com/yourusername/ConceptUI/main.lua
 
---// ========== SERVICES ==========
+local Library = {}
+Library.__index = Library
+
+-- // Default Theme (locked – but can be overridden if needed)
+Library.DefaultTheme = {
+    AccentColor = Color3.fromRGB(110, 45, 220),
+    AccentLight = Color3.fromRGB(176, 96, 244),
+    AccentDark = Color3.fromRGB(80, 65, 170),
+    TextColor = Color3.fromRGB(255, 255, 255),
+    BackgroundColor = Color3.fromRGB(255, 255, 255),
+    ShadowTransparency = 0.5,
+    Font = Enum.Font.Bangers,
+    CornerRadius = 20,
+    MarbleTexture = "133709037992585" -- asset ID
+}
+
+-- // Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
---// ========== INTERNAL STORAGE ==========
-local Windows = {}
+-- // UTILITY FUNCTIONS
+local function tween(obj, props, time, style, direction)
+    local info = TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+    local t = TweenService:Create(obj, info, props)
+    t:Play()
+    return t
+end
 
---// ========== LIBRARY CORE ==========
-local Library = {}
-Library.__index = Library
-
---// ========== CONSTANTS (locked) ==========
-local ASSETS = {
-    MarbleTexture = "133709037992585",
-    CloseButtonImage = "114840795551292",
-    MinimizedImage = "103591022804634",
-}
-
---// ========== THEME (adjustable, colors locked) ==========
-Library.Theme = {
-    Font = Enum.Font.Bangers,
-    CornerRadius = 20,
-    ButtonHeight = 38,
-    ButtonTransparency = 0.3,
-    ShadowTransparency = 0.5,
-    AccentColor = Color3.fromRGB(110,45,220),
-    TextColor = Color3.fromRGB(255,255,255),
-    HighlightColor = Color3.fromRGB(255,215,0),
-    ToggleOnColor = Color3.fromRGB(0, 200, 80),   -- Green when ON
-    ToggleOffColor = Color3.fromRGB(200, 50, 50), -- Red when OFF
-}
-
---// ========== UTILITY ==========
-local function Clamp(v, min, max) return math.max(min, math.min(max, v)) end
-local function Round(v) return math.floor(v + 0.5) end
-
---// ========== SHADOW HELPER ==========
-local function CreateShadow(parent, size, offsetX, offsetY, transparency)
+local function createShadow(parent, size, pos, transparency, corner)
     local shadow = Instance.new("Frame")
     shadow.Size = size
-    shadow.Position = UDim2.new(0, offsetX or 2, 0, offsetY or 4)
+    shadow.Position = pos
     shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = transparency or 0.3
+    shadow.BackgroundTransparency = transparency or 0.5
     shadow.BorderSizePixel = 0
     shadow.ZIndex = 0
+    local cornerInst = Instance.new("UICorner")
+    cornerInst.CornerRadius = corner or UDim.new(0, 20)
+    cornerInst.Parent = shadow
     shadow.Parent = parent
     return shadow
 end
 
---// ============================================================
---//                COMPONENT CREATORS (Full Width)
---// ============================================================
+local function createImageLabel(parent, size, pos, image, transparency, scaleType)
+    local img = Instance.new("ImageLabel")
+    img.Size = size
+    img.Position = pos
+    img.BackgroundTransparency = 1
+    img.BorderSizePixel = 0
+    img.Image = image
+    img.ImageTransparency = transparency or 0
+    img.ScaleType = scaleType or Enum.ScaleType.Fit
+    img.Parent = parent
+    return img
+end
 
---// BUTTON (Full Width with Shadow)
-local function CreateButton(options, parent, theme, gradient, assets)
-    options = options or {}
-    local text = options.Text or "Button"
-    local callback = options.Callback or function() end
+local function createGradient(parent, rotation, colorSequence)
+    local grad = Instance.new("UIGradient")
+    grad.Rotation = rotation or 90
+    grad.Color = colorSequence or ColorSequence.new{
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110,45,220)),
+        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(176,96,244)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(236,198,255))
+    }
+    grad.Parent = parent
+    return grad
+end
 
-    -- Container (full width)
+local function createStroke(parent, color, thickness, transparency)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or Color3.fromRGB(255,255,255)
+    stroke.Thickness = thickness or 2
+    stroke.Transparency = transparency or 0.3
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = parent
+    return stroke
+end
+
+-- // COMPONENT BASE CLASS
+local Component = {}
+Component.__index = Component
+
+function Component.new(parent, options)
+    local self = setmetatable({}, Component)
+    self.Parent = parent
+    self.Options = options or {}
+    self.Container = nil -- will be set by subclass
+    self.Callback = options.Callback or function() end
+    return self
+end
+
+-- // BUTTON
+local Button = setmetatable({}, {__index = Component})
+Button.__index = Button
+
+function Button.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Button"
+    self.Height = options.Height or 38
+    self.Width = options.Width or 1 -- full width of container
+    self.Callback = options.Callback or function() end
+    self:Create()
+    return self
+end
+
+function Button:Create()
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -10, 0, 50) -- Full width with small padding
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
-    container.Parent = parent
+    container.Parent = self.Parent.Content
 
-    -- Button Shadow
-    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
-    local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, 10)
-    shadowCorner.Parent = shadow
+    -- Shadow
+    local shadow = createShadow(container, UDim2.new(1, 0, 0, self.Height), UDim2.new(0, 2, 0, 4), 0.3, UDim.new(0, 10))
 
-    -- Button
+    -- Button frame
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 42)
+    btn.Size = UDim2.new(1, 0, 0, self.Height)
     btn.Position = UDim2.new(0, 0, 0, 0)
     btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
     btn.BackgroundTransparency = 0.3
@@ -86,1029 +127,1056 @@ local function CreateButton(options, parent, theme, gradient, assets)
     btn.Text = ""
     btn.ZIndex = 1
     btn.Parent = container
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(0, 10)
-    bc.Parent = btn
-    local grad = gradient:Clone()
-    grad.Parent = btn
-    local img = Instance.new("ImageLabel")
-    img.Size = UDim2.fromScale(1,1)
-    img.BackgroundTransparency = 1
-    img.BorderSizePixel = 0
-    img.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..assets.MarbleTexture.."&width=678&height=810&format=png"
-    img.ImageTransparency = 0.5
-    img.ScaleType = Enum.ScaleType.Stretch
-    img.ZIndex = 0
-    img.Parent = btn
-    local ic = Instance.new("UICorner")
-    ic.CornerRadius = UDim.new(0, 10)
-    ic.Parent = img
 
-    -- Text shadow
-    local txtShad = Instance.new("TextLabel")
-    txtShad.Size = UDim2.fromScale(1,1)
-    txtShad.Position = UDim2.new(0, 1, 0, 1)
-    txtShad.BackgroundTransparency = 1
-    txtShad.Font = theme.Font
-    txtShad.Text = text
-    txtShad.TextScaled = true
-    txtShad.TextColor3 = Color3.fromRGB(0,0,0)
-    txtShad.TextTransparency = 0.5
-    txtShad.ZIndex = 2
-    txtShad.Parent = btn
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
 
+    -- Gradient
+    local grad = createGradient(btn)
+
+    -- Marble overlay
+    local marble = createImageLabel(btn, UDim2.fromScale(1, 1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..Library.DefaultTheme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
+
+    -- Text shadow (offset)
+    local txtShadow = Instance.new("TextLabel")
+    txtShadow.Size = UDim2.fromScale(1, 1)
+    txtShadow.Position = UDim2.new(0, 1, 0, 1)
+    txtShadow.BackgroundTransparency = 1
+    txtShadow.Font = Library.DefaultTheme.Font
+    txtShadow.Text = self.Text
+    txtShadow.TextScaled = true
+    txtShadow.TextColor3 = Color3.fromRGB(0,0,0)
+    txtShadow.TextTransparency = 0.5
+    txtShadow.ZIndex = 2
+    txtShadow.Parent = btn
+
+    -- Main text
     local mainTxt = Instance.new("TextLabel")
-    mainTxt.Size = UDim2.fromScale(1,1)
+    mainTxt.Size = UDim2.fromScale(1, 1)
     mainTxt.Position = UDim2.new(0, 0, 0, 0)
     mainTxt.BackgroundTransparency = 1
-    mainTxt.Font = theme.Font
-    mainTxt.Text = text
+    mainTxt.Font = Library.DefaultTheme.Font
+    mainTxt.Text = self.Text
     mainTxt.TextScaled = true
-    mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
-    mainTxt.TextTransparency = 0
+    mainTxt.TextColor3 = Library.DefaultTheme.TextColor
     mainTxt.ZIndex = 3
     mainTxt.Parent = btn
 
-    btn.MouseButton1Click:Connect(function()
-        mainTxt.TextColor3 = theme.HighlightColor
-        btn:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+    -- Click animation
+    local function click()
+        -- shrink
+        tween(btn, {Size = UDim2.new(1, 0, 0, self.Height - 4)}, 0.08)
         btn.Position = UDim2.new(0, 0, 0, 2)
-        shadow:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        tween(shadow, {Size = UDim2.new(1, 0, 0, self.Height - 4)}, 0.08)
         shadow.Position = UDim2.new(0, 2, 0, 2)
         task.wait(0.08)
-        btn:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        tween(btn, {Size = UDim2.new(1, 0, 0, self.Height)}, 0.08)
         btn.Position = UDim2.new(0, 0, 0, 0)
-        shadow:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
+        tween(shadow, {Size = UDim2.new(1, 0, 0, self.Height)}, 0.08)
         shadow.Position = UDim2.new(0, 2, 0, 4)
-        callback()
-    end)
-
-    local obj = {
-        SetText = function(newText)
-            txtShad.Text = newText
-            mainTxt.Text = newText
-        end,
-        SetCallback = function(newCallback)
-            callback = newCallback
-        end,
-        Highlight = function()
-            mainTxt.TextColor3 = theme.HighlightColor
-        end,
-        Unhighlight = function()
-            mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
-        end,
-        Destroy = function()
-            container:Destroy()
-        end
-    }
-    return obj
-end
-
---// TOGGLE BUTTON (Green ON / Red OFF with text)
-local function CreateToggle(options, parent, theme, gradient, assets)
-    options = options or {}
-    local text = options.Text or "Toggle"
-    local default = options.Default or false
-    local callback = options.Callback or function() end
-
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -10, 0, 50)
-    container.BackgroundTransparency = 1
-    container.BorderSizePixel = 0
-    container.Parent = parent
-
-    -- Shadow
-    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
-    local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, 10)
-    shadowCorner.Parent = shadow
-
-    -- Toggle Button (full width)
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, 0, 0, 42)
-    toggleBtn.Position = UDim2.new(0, 0, 0, 0)
-    toggleBtn.BorderSizePixel = 0
-    toggleBtn.Text = ""
-    toggleBtn.AutoButtonColor = false
-    toggleBtn.ZIndex = 1
-    toggleBtn.Parent = container
-    local tbc = Instance.new("UICorner")
-    tbc.CornerRadius = UDim.new(0, 10)
-    tbc.Parent = toggleBtn
-
-    -- Gradient
-    local toggleGrad = gradient:Clone()
-    toggleGrad.Parent = toggleBtn
-
-    -- Marble overlay
-    local toggleImg = Instance.new("ImageLabel")
-    toggleImg.Size = UDim2.fromScale(1,1)
-    toggleImg.BackgroundTransparency = 1
-    toggleImg.BorderSizePixel = 0
-    toggleImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..assets.MarbleTexture.."&width=678&height=810&format=png"
-    toggleImg.ImageTransparency = 0.5
-    toggleImg.ScaleType = Enum.ScaleType.Stretch
-    toggleImg.ZIndex = 0
-    toggleImg.Parent = toggleBtn
-    local tic = Instance.new("UICorner")
-    tic.CornerRadius = UDim.new(0, 10)
-    tic.Parent = toggleImg
-
-    -- Label (left side)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.7, 0, 1, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Font = theme.Font
-    label.Text = text
-    label.TextScaled = true
-    label.TextColor3 = theme.TextColor
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 2
-    label.Parent = toggleBtn
-
-    -- Status text (right side) - shows "ON" or "OFF"
-    local statusText = Instance.new("TextLabel")
-    statusText.Size = UDim2.new(0.2, 0, 1, 0)
-    statusText.Position = UDim2.new(0.8, -10, 0, 0)
-    statusText.BackgroundTransparency = 1
-    statusText.Font = theme.Font
-    statusText.Text = default and "ON" or "OFF"
-    statusText.TextScaled = true
-    statusText.TextColor3 = default and Color3.fromRGB(0, 200, 80) or Color3.fromRGB(200, 50, 50)
-    statusText.TextXAlignment = Enum.TextXAlignment.Right
-    statusText.ZIndex = 2
-    statusText.Parent = toggleBtn
-
-    local state = default
-
-    local function setState(newState, animate)
-        state = newState
-        if state then
-            statusText.Text = "ON"
-            statusText.TextColor3 = Color3.fromRGB(0, 200, 80) -- Green
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 60)
-            toggleBtn.BackgroundTransparency = 0.3
-        else
-            statusText.Text = "OFF"
-            statusText.TextColor3 = Color3.fromRGB(200, 50, 50) -- Red
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
-            toggleBtn.BackgroundTransparency = 0.3
-        end
-        callback(state)
+        self.Callback()
     end
 
-    toggleBtn.MouseButton1Click:Connect(function()
-        -- Press animation
-        toggleBtn:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        toggleBtn.Position = UDim2.new(0, 0, 0, 2)
-        shadow:TweenSize(UDim2.new(1, 0, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        shadow.Position = UDim2.new(0, 2, 0, 2)
-        task.wait(0.08)
-        toggleBtn:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        toggleBtn.Position = UDim2.new(0, 0, 0, 0)
-        shadow:TweenSize(UDim2.new(1, 0, 0, 42), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.08, true)
-        shadow.Position = UDim2.new(0, 2, 0, 4)
-        setState(not state, true)
-    end)
+    btn.MouseButton1Click:Connect(click)
 
-    setState(default, false)
-
-    local obj = {
-        SetState = function(newState)
-            setState(newState, true)
-        end,
-        GetState = function()
-            return state
-        end,
-        Destroy = function()
-            container:Destroy()
-        end
-    }
-    return obj
+    self.Container = container
+    self.Button = btn
+    self.TextLabel = mainTxt
+    self.Shadow = shadow
 end
 
---// SLIDER (Full Width with Shadow)
-local function CreateSlider(options, parent, theme)
-    options = options or {}
-    local text = options.Text or "Slider"
-    local min = options.Min or 0
-    local max = options.Max or 100
-    local default = options.Default or 50
-    local callback = options.Callback or function() end
+function Button:SetText(newText)
+    self.Text = newText
+    self.TextLabel.Text = newText
+    self.Button:FindFirstChild("TextShadow").Text = newText
+end
 
+-- // TOGGLE
+local Toggle = setmetatable({}, {__index = Component})
+Toggle.__index = Toggle
+
+function Toggle.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Toggle"
+    self.Default = options.Default or false
+    self.Height = options.Height or 38
+    self.Width = options.Width or 1
+    self.Callback = options.Callback or function() end
+    self.State = self.Default
+    self:Create()
+    return self
+end
+
+function Toggle:Create()
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -10, 0, 65)
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
-    container.Parent = parent
+    container.Parent = self.Parent.Content
+
+    -- Shadow
+    local shadow = createShadow(container, UDim2.new(1, 0, 0, self.Height), UDim2.new(0, 2, 0, 4), 0.3, UDim.new(0, 10))
+
+    -- Button frame (clickable area)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, self.Height)
+    btn.Position = UDim2.new(0, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.ZIndex = 1
+    btn.Parent = container
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+
+    local grad = createGradient(btn)
+    local marble = createImageLabel(btn, UDim2.fromScale(1, 1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..Library.DefaultTheme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
+
+    -- Text label (left aligned)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Library.DefaultTheme.Font
+    label.Text = self.Text
+    label.TextScaled = true
+    label.TextColor3 = Library.DefaultTheme.TextColor
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 2
+    label.Parent = btn
+
+    -- Switch frame (right aligned)
+    local switch = Instance.new("Frame")
+    switch.Size = UDim2.new(0, 50, 0, 28)
+    switch.Position = UDim2.new(1, -60, 0.5, -14)
+    switch.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    switch.BackgroundTransparency = 0
+    switch.BorderSizePixel = 0
+    switch.ZIndex = 2
+    switch.Parent = btn
+
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(1, 0)
+    switchCorner.Parent = switch
+
+    -- Switch knob
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 22, 0, 22)
+    knob.Position = UDim2.new(0, 3, 0.5, -11)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 3
+    knob.Parent = switch
+
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(1, 0)
+    knobCorner.Parent = knob
+
+    -- Set initial state
+    local function updateState(state)
+        self.State = state
+        if state then
+            switch.BackgroundColor3 = Library.DefaultTheme.AccentColor
+            tween(knob, {Position = UDim2.new(1, -25, 0.5, -11)}, 0.15)
+        else
+            switch.BackgroundColor3 = Color3.fromRGB(200,200,200)
+            tween(knob, {Position = UDim2.new(0, 3, 0.5, -11)}, 0.15)
+        end
+        self.Callback(state)
+    end
+
+    updateState(self.Default)
+
+    btn.MouseButton1Click:Connect(function()
+        updateState(not self.State)
+    end)
+
+    self.Container = container
+    self.Switch = switch
+    self.Knob = knob
+end
+
+-- // SLIDER
+local Slider = setmetatable({}, {__index = Component})
+Slider.__index = Slider
+
+function Slider.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Slider"
+    self.Min = options.Min or 0
+    self.Max = options.Max or 100
+    self.Default = options.Default or 50
+    self.Height = options.Height or 48
+    self.Width = options.Width or 1
+    self.Callback = options.Callback or function() end
+    self.Value = self.Default
+    self:Create()
+    return self
+end
+
+function Slider:Create()
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
+    container.BackgroundTransparency = 1
+    container.BorderSizePixel = 0
+    container.Parent = self.Parent.Content
+
+    -- Shadow
+    local shadow = createShadow(container, UDim2.new(1, 0, 0, self.Height), UDim2.new(0, 2, 0, 4), 0.3, UDim.new(0, 10))
+
+    -- Background
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 0, self.Height)
+    bg.Position = UDim2.new(0, 0, 0, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    bg.BackgroundTransparency = 0.3
+    bg.BorderSizePixel = 0
+    bg.Parent = container
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = bg
+
+    local grad = createGradient(bg)
+    local marble = createImageLabel(bg, UDim2.fromScale(1, 1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..Library.DefaultTheme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
 
     -- Label
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.7, 0, 0.4, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
-    label.Font = theme.Font
-    label.Text = text
+    label.Font = Library.DefaultTheme.Font
+    label.Text = self.Text
     label.TextScaled = true
-    label.TextColor3 = theme.TextColor
+    label.TextColor3 = Library.DefaultTheme.TextColor
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.ZIndex = 2
+    label.Parent = bg
 
-    -- Value display
+    -- Value label
     local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(0.2, 0, 0.4, 0)
-    valueLabel.Position = UDim2.new(0.8, -10, 0, 0)
+    valueLabel.Size = UDim2.new(0.2, 0, 1, 0)
+    valueLabel.Position = UDim2.new(0.8, 0, 0, 0)
     valueLabel.BackgroundTransparency = 1
-    valueLabel.Font = theme.Font
-    valueLabel.Text = tostring(default)
+    valueLabel.Font = Library.DefaultTheme.Font
+    valueLabel.Text = tostring(self.Value)
     valueLabel.TextScaled = true
-    valueLabel.TextColor3 = theme.TextColor
+    valueLabel.TextColor3 = Library.DefaultTheme.TextColor
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Parent = container
+    valueLabel.ZIndex = 2
+    valueLabel.Parent = bg
 
-    -- Track container (with shadow)
-    local trackContainer = Instance.new("Frame")
-    trackContainer.Size = UDim2.new(1, 0, 0, 24)
-    trackContainer.Position = UDim2.new(0, 0, 0.55, 0)
-    trackContainer.BackgroundTransparency = 1
-    trackContainer.BorderSizePixel = 0
-    trackContainer.Parent = container
-
-    -- Track shadow
-    local trackShadow = CreateShadow(trackContainer, UDim2.new(1, 0, 0, 6), 2, 3, 0.3)
-    local tsCorner = Instance.new("UICorner")
-    tsCorner.CornerRadius = UDim.new(1,0)
-    tsCorner.Parent = trackShadow
-
-    -- Track
-    local track = Instance.new("TextButton")
-    track.Size = UDim2.new(1, 0, 0, 6)
-    track.Position = UDim2.new(0, 0, 0.5, -3)
-    track.BackgroundColor3 = Color3.fromRGB(60,60,70)
+    -- Slider track
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(0.6, 0, 0, 6)
+    track.Position = UDim2.new(0.2, 0, 0.5, -3)
+    track.BackgroundColor3 = Color3.fromRGB(100,100,100)
     track.BorderSizePixel = 0
-    track.Text = ""
-    track.AutoButtonColor = false
-    track.Parent = trackContainer
-    local tc = Instance.new("UICorner")
-    tc.CornerRadius = UDim.new(1,0)
-    tc.Parent = track
+    track.ZIndex = 2
+    track.Parent = bg
+
+    local trackCorner = Instance.new("UICorner")
+    trackCorner.CornerRadius = UDim.new(1, 0)
+    trackCorner.Parent = track
 
     -- Fill
     local fill = Instance.new("Frame")
-    fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
-    fill.BackgroundColor3 = Color3.fromRGB(110,45,220)
+    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = Library.DefaultTheme.AccentColor
     fill.BorderSizePixel = 0
+    fill.ZIndex = 3
     fill.Parent = track
-    local fc = Instance.new("UICorner")
-    fc.CornerRadius = UDim.new(1,0)
-    fc.Parent = fill
 
-    -- Knob shadow
-    local knobShadow = Instance.new("Frame")
-    knobShadow.Size = UDim2.new(0, 18, 0, 18)
-    knobShadow.Position = UDim2.new((default-min)/(max-min), -9, 0.5, -9)
-    knobShadow.Position = UDim2.new((default-min)/(max-min), -9, 0.5, -9)
-    knobShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    knobShadow.BackgroundTransparency = 0.3
-    knobShadow.BorderSizePixel = 0
-    knobShadow.ZIndex = 0
-    knobShadow.Parent = trackContainer
-    local ksCorner = Instance.new("UICorner")
-    ksCorner.CornerRadius = UDim.new(1,0)
-    ksCorner.Parent = knobShadow
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.Parent = fill
 
     -- Knob
-    local knob = Instance.new("TextButton")
-    knob.Size = UDim2.new(0, 16, 0, 16)
-    knob.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
-    knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0
-    knob.Text = ""
-    knob.AutoButtonColor = false
-    knob.ZIndex = 1
-    knob.Parent = trackContainer
-    local kc = Instance.new("UICorner")
-    kc.CornerRadius = UDim.new(1,0)
-    kc.Parent = knob
+    local knob = Instance.new("ImageButton")
+    knob.Size = UDim2.new(0, 20, 0, 20)
+    knob.Position = UDim2.new(0, -10, 0.5, -10)
+    knob.BackgroundTransparency = 1
+    knob.Image = "rbxassetid://6031090997" -- simple circle
+    knob.ZIndex = 4
+    knob.Parent = track
 
-    local dragging = false
-    local value = default
-
-    local function setValue(newVal)
-        value = Clamp(newVal, min, max)
-        local percent = (value - min) / (max - min)
+    local function updateValue(value)
+        local clamped = math.clamp(value, self.Min, self.Max)
+        self.Value = clamped
+        local percent = (clamped - self.Min) / (self.Max - self.Min)
         fill.Size = UDim2.new(percent, 0, 1, 0)
-        knob.Position = UDim2.new(percent, -8, 0.5, -8)
-        knobShadow.Position = UDim2.new(percent, -9, 0.5, -9)
-        valueLabel.Text = tostring(Round(value))
-        callback(value)
+        knob.Position = UDim2.new(percent, -10, 0.5, -10)
+        valueLabel.Text = tostring(math.floor(clamped))
+        self.Callback(clamped)
     end
 
-    local function updateFromMouse(input)
-        local pos = input.Position.X
-        local trackPos = track.AbsolutePosition.X
-        local trackSize = track.AbsoluteSize.X
-        local percent = Clamp((pos - trackPos) / trackSize, 0, 1)
-        local newVal = min + percent * (max - min)
-        setValue(newVal)
-    end
+    updateValue(self.Default)
 
-    knob.MouseButton1Down:Connect(function()
+    -- Dragging
+    local dragging = false
+    local function startDrag()
         dragging = true
-        local con1, con2
-        con1 = UserInputService.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-                updateFromMouse(input)
-            end
-        end)
-        con2 = UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = false
-                con1:Disconnect()
-                con2:Disconnect()
-            end
-        end)
-    end)
+    end
+    local function endDrag()
+        dragging = false
+    end
+    local function drag(input)
+        if dragging then
+            local pos = input.Position.X - track.AbsolutePosition.X
+            local width = track.AbsoluteSize.X
+            local percent = math.clamp(pos / width, 0, 1)
+            local val = self.Min + (self.Max - self.Min) * percent
+            updateValue(val)
+        end
+    end
 
-    track.MouseButton1Click:Connect(function(input)
-        if not dragging then
-            updateFromMouse(input)
+    knob.MouseButton1Down:Connect(startDrag)
+    UserInputService.InputEnded:Connect(function(input, processed)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and dragging then
+            endDrag()
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+            drag(input)
         end
     end)
 
-    setValue(default)
-
-    local obj = {
-        SetValue = setValue,
-        GetValue = function() return value end,
-        Destroy = function() container:Destroy() end
-    }
-    return obj
+    self.Container = container
+    self.Fill = fill
+    self.Knob = knob
+    self.ValueLabel = valueLabel
 end
 
---// TEXTBOX (Full Width with Shadow)
-local function CreateTextbox(options, parent, theme, gradient, assets)
-    options = options or {}
-    local text = options.Text or ""
-    local placeholder = options.Placeholder or "Type here..."
-    local callback = options.Callback or function() end
+-- // TEXTBOX
+local Textbox = setmetatable({}, {__index = Component})
+Textbox.__index = Textbox
 
+function Textbox.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Enter text..."
+    self.Placeholder = options.Placeholder or "Type here..."
+    self.Height = options.Height or 38
+    self.Width = options.Width or 1
+    self.Callback = options.Callback or function() end
+    self:Create()
+    return self
+end
+
+function Textbox:Create()
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -10, 0, 50)
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
-    container.Parent = parent
+    container.Parent = self.Parent.Content
 
-    -- Shadow
-    local shadow = CreateShadow(container, UDim2.new(1, 0, 0, 42), 2, 4, 0.3)
-    local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, 8)
-    shadowCorner.Parent = shadow
+    local shadow = createShadow(container, UDim2.new(1, 0, 0, self.Height), UDim2.new(0, 2, 0, 4), 0.3, UDim.new(0, 10))
 
-    -- Label
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 0, self.Height)
+    bg.Position = UDim2.new(0, 0, 0, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    bg.BackgroundTransparency = 0.3
+    bg.BorderSizePixel = 0
+    bg.Parent = container
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = bg
+
+    local grad = createGradient(bg)
+    local marble = createImageLabel(bg, UDim2.fromScale(1, 1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..Library.DefaultTheme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
+
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0.25, 0, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
-    label.Font = theme.Font
-    label.Text = text
+    label.Font = Library.DefaultTheme.Font
+    label.Text = self.Text
     label.TextScaled = true
-    label.TextColor3 = theme.TextColor
+    label.TextColor3 = Library.DefaultTheme.TextColor
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    label.ZIndex = 2
+    label.Parent = bg
 
-    -- TextBox
     local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.7, 0, 1, 0)
-    box.Position = UDim2.new(0.3, -10, 0, 0)
+    box.Size = UDim2.new(0.6, 0, 0.8, 0)
+    box.Position = UDim2.new(0.35, 0, 0.1, 0)
     box.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    box.BackgroundTransparency = 0.2
-    box.BorderSizePixel = 0
-    box.Font = theme.Font
-    box.Text = placeholder
+    box.BackgroundTransparency = 0.8
+    box.BorderSizePixel = 1
+    box.BorderColor3 = Color3.fromRGB(200,200,200)
+    box.Font = Library.DefaultTheme.Font
+    box.Text = ""
+    box.PlaceholderText = self.Placeholder
     box.TextScaled = true
-    box.TextColor3 = Color3.fromRGB(180,180,190)
-    box.PlaceholderText = placeholder
-    box.Parent = container
-    local bc = Instance.new("UICorner")
-    bc.CornerRadius = UDim.new(0, 8)
-    bc.Parent = box
+    box.TextColor3 = Library.DefaultTheme.TextColor
+    box.PlaceholderColor3 = Color3.fromRGB(180,180,180)
+    box.ZIndex = 2
+    box.Parent = bg
+
+    local boxCorner = Instance.new("UICorner")
+    boxCorner.CornerRadius = UDim.new(0, 8)
+    boxCorner.Parent = box
 
     box.FocusLost:Connect(function(enterPressed)
         if enterPressed then
-            callback(box.Text)
+            self.Callback(box.Text)
         end
     end)
 
-    local obj = {
-        GetText = function() return box.Text end,
-        SetText = function(newText) box.Text = newText end,
-        Destroy = function() container:Destroy() end
-    }
-    return obj
+    self.Container = container
+    self.Box = box
 end
 
---// LABEL (Full Width)
-local function CreateLabel(options, parent, theme)
-    options = options or {}
-    local text = options.Text or "Label"
-    local isParagraph = options.Paragraph or false
+-- // LABEL
+local Label = setmetatable({}, {__index = Component})
+Label.__index = Label
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, isParagraph and 60 or 35)
-    label.BackgroundTransparency = 1
-    label.BorderSizePixel = 0
-    label.Font = theme.Font
-    label.Text = text
-    label.TextScaled = not isParagraph
-    label.TextColor3 = theme.TextColor
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextYAlignment = isParagraph and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
-    label.TextWrapped = isParagraph
-    label.Parent = parent
-
-    local obj = {
-        SetText = function(newText) label.Text = newText end,
-        Destroy = function() label:Destroy() end
-    }
-    return obj
-end
-
---// SECTION / DIVIDER (Full Width)
-local function CreateSection(options, parent, theme)
-    options = options or {}
-    local text = options.Text or ""
-
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -10, 0, 35)
-    container.BackgroundTransparency = 1
-    container.BorderSizePixel = 0
-    container.Parent = parent
-
-    if text and text ~= "" then
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.35, 0, 1, 0)
-        label.Position = UDim2.new(0, 0, 0, 0)
-        label.BackgroundTransparency = 1
-        label.Font = theme.Font
-        label.Text = text
-        label.TextScaled = true
-        label.TextColor3 = theme.TextColor
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = container
-
-        local line = Instance.new("Frame")
-        line.Size = UDim2.new(0.6, 0, 0, 2)
-        line.Position = UDim2.new(0.4, 0, 0.5, -1)
-        line.BackgroundColor3 = theme.TextColor
-        line.BackgroundTransparency = 0.5
-        line.BorderSizePixel = 0
-        line.Parent = container
-    else
-        local line = Instance.new("Frame")
-        line.Size = UDim2.new(1, 0, 0, 2)
-        line.Position = UDim2.new(0, 0, 0.5, -1)
-        line.BackgroundColor3 = theme.TextColor
-        line.BackgroundTransparency = 0.5
-        line.BorderSizePixel = 0
-        line.Parent = container
-    end
-
-    local obj = {
-        Destroy = function() container:Destroy() end
-    }
-    return obj
-end
-
---// ============================================================
---//                    WINDOW CREATOR
---// ============================================================
-
-function Library:CreateWindow(options)
-    options = options or {}
-    local title = options.Title or "Window"
-    local size = options.Size or {0.45, 0.75}
-    local pos = options.Position or {0.5, 0.54}
-    local theme = options.Theme or Library.Theme
-
-    local Gui = Instance.new("ScreenGui")
-    Gui.Name = "LibraryUI"
-    Gui.ResetOnSpawn = false
-    Gui.IgnoreGuiInset = true
-    Gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-    --// Shadow
-    local Shadow = Instance.new("Frame")
-    Shadow.Name = "Shadow"
-    Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    Shadow.Position = UDim2.new(pos[1], 0, pos[2], 8)
-    Shadow.Size = UDim2.fromScale(size[1], size[2])
-    Shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    Shadow.BackgroundTransparency = 0.5
-    Shadow.BorderSizePixel = 0
-    Shadow.ZIndex = 0
-    Shadow.Parent = Gui
-    local ShadowCorner = Instance.new("UICorner")
-    ShadowCorner.CornerRadius = UDim.new(0, theme.CornerRadius)
-    ShadowCorner.Parent = Shadow
-
-    --// Main Panel
-    local Main = Instance.new("Frame")
-    Main.Name = "Main"
-    Main.AnchorPoint = Vector2.new(0.5, 0.5)
-    Main.Position = UDim2.new(pos[1], 0, pos[2], 0)
-    Main.Size = UDim2.fromScale(size[1], size[2])
-    Main.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    Main.BorderSizePixel = 0
-    Main.Parent = Gui
-    local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, theme.CornerRadius)
-    MainCorner.Parent = Main
-
-    local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(255,255,255)
-    MainStroke.Thickness = 2
-    MainStroke.Transparency = 0.3
-    MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    MainStroke.Parent = Main
-
-    local MainGradient = Instance.new("UIGradient")
-    MainGradient.Rotation = 90
-    MainGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110,45,220)),
-        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(176,96,244)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(236,198,255))
-    }
-    MainGradient.Parent = Main
-
-    local MarbleTexture = Instance.new("ImageLabel")
-    MarbleTexture.Size = UDim2.fromScale(1,1)
-    MarbleTexture.BackgroundTransparency = 1
-    MarbleTexture.BorderSizePixel = 0
-    MarbleTexture.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MarbleTexture.."&width=678&height=810&format=png"
-    MarbleTexture.ImageTransparency = 0.6
-    MarbleTexture.ScaleType = Enum.ScaleType.Stretch
-    MarbleTexture.Parent = Main
-    local MarbleCorner = Instance.new("UICorner")
-    MarbleCorner.CornerRadius = UDim.new(0, theme.CornerRadius)
-    MarbleCorner.Parent = MarbleTexture
-
-    --// ===== HEADER =====
-    local HeaderShadow = Instance.new("Frame")
-    HeaderShadow.Name = "HeaderShadow"
-    HeaderShadow.AnchorPoint = Vector2.new(0.5,0)
-    HeaderShadow.Position = UDim2.new(0.5,2, -0.04,4)
-    HeaderShadow.Size = UDim2.fromScale(0.5, 0.09)
-    HeaderShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    HeaderShadow.BackgroundTransparency = 0.4
-    HeaderShadow.BorderSizePixel = 0
-    HeaderShadow.ZIndex = 0
-    HeaderShadow.Parent = Main
-    local HS_corner = Instance.new("UICorner")
-    HS_corner.CornerRadius = UDim.new(0, 18)
-    HS_corner.Parent = HeaderShadow
-
-    local Header = Instance.new("Frame")
-    Header.Name = "Header"
-    Header.AnchorPoint = Vector2.new(0.5,0)
-    Header.Position = UDim2.new(0.5,0, -0.04,0)
-    Header.Size = UDim2.fromScale(0.5, 0.09)
-    Header.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    Header.BorderSizePixel = 0
-    Header.Parent = Main
-    local HeaderCorner = Instance.new("UICorner")
-    HeaderCorner.CornerRadius = UDim.new(0, 18)
-    HeaderCorner.Parent = Header
-    local HeaderGrad = MainGradient:Clone()
-    HeaderGrad.Parent = Header
-
-    local HeaderMarble = Instance.new("ImageLabel")
-    HeaderMarble.Size = UDim2.fromScale(1,1)
-    HeaderMarble.BackgroundTransparency = 1
-    HeaderMarble.BorderSizePixel = 0
-    HeaderMarble.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MarbleTexture.."&width=678&height=810&format=png"
-    HeaderMarble.ImageTransparency = 0.6
-    HeaderMarble.ScaleType = Enum.ScaleType.Stretch
-    HeaderMarble.Parent = Header
-    local HM_corner = Instance.new("UICorner")
-    HM_corner.CornerRadius = UDim.new(0, 18)
-    HM_corner.Parent = HeaderMarble
-
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Name = "TitleLabel"
-    TitleLabel.AnchorPoint = Vector2.new(0.5,0.5)
-    TitleLabel.Position = UDim2.fromScale(0.5,0.5)
-    TitleLabel.Size = UDim2.fromScale(0.9,0.8)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Font = theme.Font
-    TitleLabel.Text = title
-    TitleLabel.TextScaled = true
-    TitleLabel.TextColor3 = theme.TextColor
-    TitleLabel.Parent = Header
-
-    --// ===== CLOSE/MINIMIZE BUTTON =====
-    local CloseBtn = Instance.new("ImageButton")
-    CloseBtn.Name = "CloseBtn"
-    CloseBtn.AnchorPoint = Vector2.new(0.5,0.5)
-    CloseBtn.Position = UDim2.new(1,0, 0,0)
-    CloseBtn.Size = UDim2.fromOffset(56,56)
-    CloseBtn.BackgroundTransparency = 1
-    CloseBtn.BorderSizePixel = 0
-    CloseBtn.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.CloseButtonImage.."&width=678&height=810&format=png"
-    CloseBtn.ScaleType = Enum.ScaleType.Fit
-    CloseBtn.ZIndex = 10
-    CloseBtn.Parent = Main
-    local CB_corner = Instance.new("UICorner")
-    CB_corner.CornerRadius = UDim.new(1,0)
-    CB_corner.Parent = CloseBtn
-    CloseBtn.MouseEnter:Connect(function() CloseBtn:TweenSize(UDim2.fromOffset(62,62), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true) end)
-    CloseBtn.MouseLeave:Connect(function() CloseBtn:TweenSize(UDim2.fromOffset(56,56), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true) end)
-
-    --// ===== MINIMIZED FRAME =====
-    local Minimized = Instance.new("ImageButton")
-    Minimized.Name = "Minimized"
-    Minimized.AnchorPoint = Vector2.new(1,0)
-    Minimized.Position = UDim2.new(1,-20, 0,20)
-    Minimized.Size = UDim2.fromOffset(60,60)
-    Minimized.BackgroundTransparency = 1
-    Minimized.BorderSizePixel = 0
-    Minimized.Visible = false
-    Minimized.ZIndex = 100
-    Minimized.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MinimizedImage.."&width=678&height=810&format=png"
-    Minimized.ScaleType = Enum.ScaleType.Fit
-    Minimized.Parent = Gui
-    local M_corner = Instance.new("UICorner")
-    M_corner.CornerRadius = UDim.new(1,0)
-    M_corner.Parent = Minimized
-    local M_stroke = Instance.new("UIStroke")
-    M_stroke.Color = Color3.fromRGB(255,255,255)
-    M_stroke.Thickness = 2
-    M_stroke.Transparency = 0.3
-    M_stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    M_stroke.Parent = Minimized
-
-    --// ===== SIDE PANEL (Tabs) =====
-    local SideShadow = Instance.new("Frame")
-    SideShadow.Name = "SideShadow"
-    SideShadow.AnchorPoint = Vector2.new(1,0.5)
-    SideShadow.Position = UDim2.new(0,-12, 0.5,8)
-    SideShadow.Size = UDim2.fromScale(0.3, 0.90)
-    SideShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    SideShadow.BackgroundTransparency = 0.45
-    SideShadow.BorderSizePixel = 0
-    SideShadow.ZIndex = 0
-    SideShadow.Parent = Main
-    local SS_corner = Instance.new("UICorner")
-    SS_corner.CornerRadius = UDim.new(0,16)
-    SS_corner.Parent = SideShadow
-
-    local Side = Instance.new("Frame")
-    Side.Name = "Side"
-    Side.AnchorPoint = Vector2.new(1,0.5)
-    Side.Position = UDim2.new(0,-12, 0.5,0)
-    Side.Size = UDim2.fromScale(0.3, 0.90)
-    Side.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    Side.BackgroundTransparency = 0.15
-    Side.BorderSizePixel = 0
-    Side.Parent = Main
-    local SideCorner = Instance.new("UICorner")
-    SideCorner.CornerRadius = UDim.new(0,16)
-    SideCorner.Parent = Side
-    local SideStroke = Instance.new("UIStroke")
-    SideStroke.Color = Color3.fromRGB(255,255,255)
-    SideStroke.Thickness = 2
-    SideStroke.Transparency = 0.3
-    SideStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    SideStroke.Parent = Side
-    local SideGrad = MainGradient:Clone()
-    SideGrad.Parent = Side
-    local SideMarble = Instance.new("ImageLabel")
-    SideMarble.Size = UDim2.fromScale(1,1)
-    SideMarble.BackgroundTransparency = 1
-    SideMarble.BorderSizePixel = 0
-    SideMarble.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MarbleTexture.."&width=678&height=810&format=png"
-    SideMarble.ImageTransparency = 0.6
-    SideMarble.ScaleType = Enum.ScaleType.Stretch
-    SideMarble.Parent = Side
-    local SM_corner = Instance.new("UICorner")
-    SM_corner.CornerRadius = UDim.new(0,16)
-    SM_corner.Parent = SideMarble
-
-    local Scroll = Instance.new("ScrollingFrame")
-    Scroll.Name = "TabScroll"
-    Scroll.Size = UDim2.new(1,0, 1,0)
-    Scroll.BackgroundTransparency = 1
-    Scroll.BorderSizePixel = 0
-    Scroll.ScrollBarThickness = 4
-    Scroll.ScrollBarImageColor3 = Color3.fromRGB(180,120,255)
-    Scroll.CanvasSize = UDim2.new(0,0,0,0)
-    Scroll.Parent = Side
-    local Pad = Instance.new("UIPadding")
-    Pad.PaddingTop = UDim.new(0,12)
-    Pad.PaddingBottom = UDim.new(0,12)
-    Pad.PaddingLeft = UDim.new(0,8)
-    Pad.PaddingRight = UDim.new(0,8)
-    Pad.Parent = Scroll
-    local Layout = Instance.new("UIListLayout")
-    Layout.Padding = UDim.new(0,4)
-    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    Layout.VerticalAlignment = Enum.VerticalAlignment.Top
-    Layout.Parent = Scroll
-
-    --// ===== CONTENT AREA =====
-    local ContentArea = Instance.new("Frame")
-    ContentArea.Name = "ContentArea"
-    ContentArea.AnchorPoint = Vector2.new(0,0)
-    ContentArea.Position = UDim2.new(0,0, 0,0)
-    ContentArea.Size = UDim2.new(0.65,0, 1,0)
-    ContentArea.BackgroundTransparency = 1
-    ContentArea.BorderSizePixel = 0
-    ContentArea.ClipsDescendants = true
-    ContentArea.Parent = Main
-
-    local ContentPad = Instance.new("UIPadding")
-    ContentPad.PaddingTop = UDim.new(0,10)
-    ContentPad.PaddingBottom = UDim.new(0,10)
-    ContentPad.PaddingLeft = UDim.new(0,10)
-    ContentPad.PaddingRight = UDim.new(0,10)
-    ContentPad.Parent = ContentArea
-
-    local ContentScroll = Instance.new("ScrollingFrame")
-    ContentScroll.Name = "ContentScroll"
-    ContentScroll.Size = UDim2.new(1,0, 1,0)
-    ContentScroll.BackgroundTransparency = 1
-    ContentScroll.BorderSizePixel = 0
-    ContentScroll.ScrollBarThickness = 4
-    ContentScroll.ScrollBarImageColor3 = Color3.fromRGB(180,120,255)
-    ContentScroll.CanvasSize = UDim2.new(0,0,0,0)
-    ContentScroll.Parent = ContentArea
-    local ContentLayout = Instance.new("UIListLayout")
-    ContentLayout.Padding = UDim.new(0,8)
-    ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    ContentLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-    ContentLayout.Parent = ContentScroll
-
-    --// ===== WINDOW OBJECT =====
-    local self = {
-        Gui = Gui,
-        Main = Main,
-        Shadow = Shadow,
-        Header = Header,
-        TitleLabel = TitleLabel,
-        CloseBtn = CloseBtn,
-        Minimized = Minimized,
-        Side = Side,
-        Scroll = Scroll,
-        ContentScroll = ContentScroll,
-        ContentLayout = ContentLayout,
-        Tabs = {},
-        ActiveTab = nil,
-        Theme = theme,
-        Size = size,
-        Position = pos,
-        SetHeader = function(text)
-            if type(text) == "table" then
-                text = text.Text or text[1] or "Window"
-            end
-            TitleLabel.Text = tostring(text)
-        end,
-    }
-
-    --// ===== MINIMIZE / RESTORE =====
-    CloseBtn.MouseButton1Click:Connect(function()
-        local targetPos = UDim2.new(1, -40, 0, 40)
-        local targetSize = UDim2.fromScale(0.05, 0.05)
-        local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-        TweenService:Create(Main, info, {Size = targetSize, Position = targetPos}):Play()
-        TweenService:Create(Shadow, info, {Size = targetSize, Position = targetPos}):Play()
-        task.wait(0.3)
-        Main.Visible = false
-        Shadow.Visible = false
-        Minimized.Visible = true
-        Minimized.Size = UDim2.fromOffset(0,0)
-        Minimized:TweenSize(UDim2.fromOffset(60,60), Enum.EasingDirection.Out, Enum.EasingStyle.Back, 0.3, true)
-    end)
-
-    Minimized.MouseButton1Click:Connect(function()
-        Minimized.Visible = false
-        Main.Size = UDim2.fromScale(self.Size[1], self.Size[2])
-        Main.Position = UDim2.new(self.Position[1], 0, self.Position[2], 0)
-        Shadow.Size = UDim2.fromScale(self.Size[1], self.Size[2])
-        Shadow.Position = UDim2.new(self.Position[1], 0, self.Position[2], 8)
-        Main.Visible = true
-        Shadow.Visible = true
-        Main.Size = UDim2.fromScale(0.05,0.05)
-        Main.Position = UDim2.new(1, -40, 0, 40)
-        Shadow.Size = UDim2.fromScale(0.05,0.05)
-        Shadow.Position = UDim2.new(1, -40, 0, 40)
-        local info = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0)
-        TweenService:Create(Main, info, {Size = UDim2.fromScale(self.Size[1], self.Size[2]), Position = UDim2.new(self.Position[1], 0, self.Position[2], 0)}):Play()
-        TweenService:Create(Shadow, info, {Size = UDim2.fromScale(self.Size[1], self.Size[2]), Position = UDim2.new(self.Position[1], 0, self.Position[2], 8)}):Play()
-    end)
-
-    --// ===== TAB SYSTEM =====
-    function self:CreateTab(options)
-        options = options or {}
-        local tabTitle = options.Title or "Tab"
-        local tabId = #self.Tabs + 1
-
-        local windowTheme = self.Theme
-        local windowGradient = MainGradient
-        local windowAssets = ASSETS
-
-        local Container = Instance.new("Frame")
-        Container.Name = "TabContainer_"..tabId
-        Container.Size = UDim2.new(0.9, 0, 0, 42)
-        Container.BackgroundTransparency = 1
-        Container.BorderSizePixel = 0
-        Container.Parent = self.Scroll
-
-        local btnShadow = Instance.new("Frame")
-        btnShadow.Name = "TabShadow"
-        btnShadow.Size = UDim2.new(1,0, 0,38)
-        btnShadow.Position = UDim2.new(0,2, 0,4)
-        btnShadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-        btnShadow.BackgroundTransparency = 0.3
-        btnShadow.BorderSizePixel = 0
-        btnShadow.ZIndex = 0
-        btnShadow.Parent = Container
-        local bsc = Instance.new("UICorner")
-        bsc.CornerRadius = UDim.new(0,10)
-        bsc.Parent = btnShadow
-
-        local btn = Instance.new("TextButton")
-        btn.Name = "TabButton"
-        btn.Size = UDim2.new(1,0, 0,38)
-        btn.Position = UDim2.new(0,0, 0,0)
-        btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
-        btn.BackgroundTransparency = 0.3
-        btn.BorderSizePixel = 0
-        btn.Text = ""
-        btn.ZIndex = 1
-        btn.Parent = Container
-        local btnc = Instance.new("UICorner")
-        btnc.CornerRadius = UDim.new(0,10)
-        btnc.Parent = btn
-        local btnGrad = windowGradient:Clone()
-        btnGrad.Parent = btn
-        local btnImg = Instance.new("ImageLabel")
-        btnImg.Size = UDim2.fromScale(1,1)
-        btnImg.BackgroundTransparency = 1
-        btnImg.BorderSizePixel = 0
-        btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..windowAssets.MarbleTexture.."&width=678&height=810&format=png"
-        btnImg.ImageTransparency = 0.5
-        btnImg.ScaleType = Enum.ScaleType.Stretch
-        btnImg.ZIndex = 0
-        btnImg.Parent = btn
-        local bic = Instance.new("UICorner")
-        bic.CornerRadius = UDim.new(0,10)
-        bic.Parent = btnImg
-
-        local txtShadow = Instance.new("TextLabel")
-        txtShadow.Size = UDim2.fromScale(1,1)
-        txtShadow.Position = UDim2.new(0,1, 0,1)
-        txtShadow.BackgroundTransparency = 1
-        txtShadow.Font = windowTheme.Font
-        txtShadow.Text = tabTitle
-        txtShadow.TextScaled = true
-        txtShadow.TextColor3 = Color3.fromRGB(0,0,0)
-        txtShadow.TextTransparency = 0.5
-        txtShadow.ZIndex = 2
-        txtShadow.Parent = btn
-
-        local mainTxt = Instance.new("TextLabel")
-        mainTxt.Size = UDim2.fromScale(1,1)
-        mainTxt.Position = UDim2.new(0,0, 0,0)
-        mainTxt.BackgroundTransparency = 1
-        mainTxt.Font = windowTheme.Font
-        mainTxt.Text = tabTitle
-        mainTxt.TextScaled = true
-        mainTxt.TextColor3 = Color3.fromRGB(255,255,255)
-        mainTxt.TextTransparency = 0
-        mainTxt.ZIndex = 3
-        mainTxt.Parent = btn
-
-        local contentFrame = Instance.new("Frame")
-        contentFrame.Name = "TabContent_"..tabId
-        contentFrame.Size = UDim2.new(1,0, 1,0)
-        contentFrame.BackgroundTransparency = 1
-        contentFrame.BorderSizePixel = 0
-        contentFrame.Visible = false
-        contentFrame.Parent = self.ContentScroll
-        local tabLayout = Instance.new("UIListLayout")
-        tabLayout.Padding = UDim.new(0,8)
-        tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-        tabLayout.Parent = contentFrame
-        local tabPad = Instance.new("UIPadding")
-        tabPad.PaddingTop = UDim.new(0,4)
-        tabPad.PaddingBottom = UDim.new(0,4)
-        tabPad.PaddingLeft = UDim.new(0,4)
-        tabPad.PaddingRight = UDim.new(0,4)
-        tabPad.Parent = contentFrame
-
-        local tabObj = {
-            Id = tabId,
-            Title = tabTitle,
-            Button = btn,
-            MainText = mainTxt,
-            Content = contentFrame,
-            Layout = tabLayout,
-            Components = {},
-            Active = false,
-        }
-
-        btn.MouseButton1Click:Connect(function()
-            self:SwitchTab(tabId)
-        end)
-
-        table.insert(self.Tabs, tabObj)
-        self:UpdateCanvas()
-
-        local api = {}
-
-        function api:CreateButton(options)
-            return CreateButton(options, contentFrame, windowTheme, windowGradient, windowAssets)
-        end
-
-        function api:CreateToggle(options)
-            return CreateToggle(options, contentFrame, windowTheme, windowGradient, windowAssets)
-        end
-
-        function api:CreateSlider(options)
-            return CreateSlider(options, contentFrame, windowTheme)
-        end
-
-        function api:CreateTextbox(options)
-            return CreateTextbox(options, contentFrame, windowTheme, windowGradient, windowAssets)
-        end
-
-        function api:CreateLabel(options)
-            return CreateLabel(options, contentFrame, windowTheme)
-        end
-
-        function api:CreateSection(options)
-            return CreateSection(options, contentFrame, windowTheme)
-        end
-
-        if #self.Tabs == 1 then
-            self:SwitchTab(1)
-        end
-
-        return api
-    end
-
-    function self:SwitchTab(id)
-        for _, tab in ipairs(self.Tabs) do
-            tab.Content.Visible = false
-            tab.MainText.TextColor3 = Color3.fromRGB(255,255,255)
-            tab.Active = false
-        end
-        local tab = self.Tabs[id]
-        if tab then
-            tab.Content.Visible = true
-            tab.MainText.TextColor3 = self.Theme.HighlightColor
-            tab.Active = true
-            self.ActiveTab = id
-            self.TitleLabel.Text = tab.Title
-            self:UpdateContentCanvas()
-        end
-    end
-
-    function self:UpdateCanvas()
-        local total = 0
-        for _, child in pairs(self.Scroll:GetChildren()) do
-            if child:IsA("Frame") and child.Name:find("TabContainer") then
-                total = total + child.Size.Y.Offset + 4
-            end
-        end
-        self.Scroll.CanvasSize = UDim2.new(0,0,0,total + 24)
-    end
-
-    function self:UpdateContentCanvas()
-        local total = 0
-        for _, child in pairs(self.ContentScroll:GetChildren()) do
-            if child:IsA("Frame") and child.Name:find("TabContent") and child.Visible then
-                local subTotal = 0
-                for _, sub in pairs(child:GetChildren()) do
-                    if sub:IsA("Frame") or sub:IsA("TextButton") or sub:IsA("TextLabel") or sub:IsA("TextBox") then
-                        subTotal = subTotal + sub.Size.Y.Offset + 8
-                    end
-                end
-                total = total + subTotal
-            end
-        end
-        self.ContentScroll.CanvasSize = UDim2.new(0,0,0,total + 40)
-    end
-
-    function self:Destroy()
-        self.Gui:Destroy()
-    end
-
-    table.insert(Windows, self)
+function Label.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Label"
+    self.Height = options.Height or 30
+    self.Width = options.Width or 1
+    self.FontSize = options.FontSize or 0.5
+    self:Create()
     return self
 end
 
---// ========== RETURN LIBRARY ==========
+function Label:Create()
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
+    container.BackgroundTransparency = 1
+    container.Parent = self.Parent.Content
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Library.DefaultTheme.Font
+    label.Text = self.Text
+    label.TextScaled = true
+    label.TextColor3 = Library.DefaultTheme.TextColor
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    self.Container = container
+end
+
+-- // DROPDOWN
+local Dropdown = setmetatable({}, {__index = Component})
+Dropdown.__index = Dropdown
+
+function Dropdown.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Dropdown"
+    self.Options = options.Options or {"Option 1", "Option 2", "Option 3"}
+    self.Default = options.Default or self.Options[1]
+    self.Height = options.Height or 38
+    self.Width = options.Width or 1
+    self.Callback = options.Callback or function() end
+    self.Selected = self.Default
+    self.Open = false
+    self:Create()
+    return self
+end
+
+function Dropdown:Create()
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
+    container.BackgroundTransparency = 1
+    container.Parent = self.Parent.Content
+
+    local shadow = createShadow(container, UDim2.new(1, 0, 0, self.Height), UDim2.new(0, 2, 0, 4), 0.3, UDim.new(0, 10))
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, self.Height)
+    btn.Position = UDim2.new(0, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.ZIndex = 1
+    btn.Parent = container
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+
+    local grad = createGradient(btn)
+    local marble = createImageLabel(btn, UDim2.fromScale(1, 1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..Library.DefaultTheme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
+
+    -- Main text (selected)
+    local mainText = Instance.new("TextLabel")
+    mainText.Size = UDim2.new(0.8, 0, 1, 0)
+    mainText.Position = UDim2.new(0, 10, 0, 0)
+    mainText.BackgroundTransparency = 1
+    mainText.Font = Library.DefaultTheme.Font
+    mainText.Text = self.Selected
+    mainText.TextScaled = true
+    mainText.TextColor3 = Library.DefaultTheme.TextColor
+    mainText.TextXAlignment = Enum.TextXAlignment.Left
+    mainText.ZIndex = 2
+    mainText.Parent = btn
+
+    -- Arrow
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0.1, 0, 1, 0)
+    arrow.Position = UDim2.new(0.9, 0, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.Font = Library.DefaultTheme.Font
+    arrow.Text = "▼"
+    arrow.TextScaled = true
+    arrow.TextColor3 = Library.DefaultTheme.TextColor
+    arrow.ZIndex = 2
+    arrow.Parent = btn
+
+    -- Dropdown list (hidden)
+    local list = Instance.new("Frame")
+    list.Size = UDim2.new(1, 0, 0, #self.Options * (self.Height + 4))
+    list.Position = UDim2.new(0, 0, 1, 4)
+    list.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    list.BackgroundTransparency = 0.95
+    list.BorderSizePixel = 0
+    list.Visible = false
+    list.ZIndex = 5
+    list.Parent = container
+
+    local listCorner = Instance.new("UICorner")
+    listCorner.CornerRadius = UDim.new(0, 10)
+    listCorner.Parent = list
+
+    local listStroke = createStroke(list, Color3.fromRGB(200,200,200), 1, 0.5)
+
+    -- Create option buttons
+    local optionBtns = {}
+    for i, opt in ipairs(self.Options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, self.Height)
+        optBtn.Position = UDim2.new(0, 0, 0, (i-1)*(self.Height + 4))
+        optBtn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        optBtn.BackgroundTransparency = 0.5
+        optBtn.BorderSizePixel = 0
+        optBtn.Text = opt
+        optBtn.Font = Library.DefaultTheme.Font
+        optBtn.TextScaled = true
+        optBtn.TextColor3 = Library.DefaultTheme.TextColor
+        optBtn.ZIndex = 6
+        optBtn.Parent = list
+
+        local optCorner = Instance.new("UICorner")
+        optCorner.CornerRadius = UDim.new(0, 8)
+        optCorner.Parent = optBtn
+
+        optBtn.MouseButton1Click:Connect(function()
+            self.Selected = opt
+            mainText.Text = opt
+            list.Visible = false
+            self.Open = false
+            self.Callback(opt)
+        end)
+
+        table.insert(optionBtns, optBtn)
+    end
+
+    -- Toggle dropdown
+    btn.MouseButton1Click:Connect(function()
+        self.Open = not self.Open
+        list.Visible = self.Open
+        arrow.Text = self.Open and "▲" or "▼"
+        if self.Open then
+            -- Adjust list height to fit
+            list.Size = UDim2.new(1, 0, 0, #self.Options * (self.Height + 4))
+        end
+    end)
+
+    self.Container = container
+    self.List = list
+    self.MainText = mainText
+    self.Arrow = arrow
+end
+
+-- // SECTION
+local Section = setmetatable({}, {__index = Component})
+Section.__index = Section
+
+function Section.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Text = options.Text or "Section"
+    self.Height = options.Height or 30
+    self.Width = options.Width or 1
+    self:Create()
+    return self
+end
+
+function Section:Create()
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
+    container.BackgroundTransparency = 1
+    container.Parent = self.Parent.Content
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Library.DefaultTheme.Font
+    label.Text = self.Text
+    label.TextScaled = true
+    label.TextColor3 = Library.DefaultTheme.TextColor
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextTransparency = 0.3
+    label.Parent = container
+
+    self.Container = container
+end
+
+-- // DIVIDER
+local Divider = setmetatable({}, {__index = Component})
+Divider.__index = Divider
+
+function Divider.new(parent, options)
+    local self = Component.new(parent, options)
+    self.Height = options.Height or 20
+    self.Width = options.Width or 1
+    self:Create()
+    return self
+end
+
+function Divider:Create()
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(self.Width, 0, 0, self.Height + 6)
+    container.BackgroundTransparency = 1
+    container.Parent = self.Parent.Content
+
+    local line = Instance.new("Frame")
+    line.Size = UDim2.new(1, 0, 0, 2)
+    line.Position = UDim2.new(0, 0, 0.5, -1)
+    line.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    line.BackgroundTransparency = 0.5
+    line.BorderSizePixel = 0
+    line.Parent = container
+
+    self.Container = container
+end
+
+-- // WINDOW
+local Window = {}
+Window.__index = Window
+
+function Window.new(options)
+    local self = setmetatable({}, Window)
+    self.Options = options or {}
+    self.Title = self.Options.Title or "Window"
+    self.Size = self.Options.Size or {0.4, 0.75}
+    self.Position = self.Options.Position or {0.5, 0.54}
+    self.Theme = self.Options.Theme or Library.DefaultTheme
+    self.Tabs = {}
+    self.CurrentTab = nil
+
+    -- Create GUI
+    self.Gui = Instance.new("ScreenGui")
+    self.Gui.Name = "ConceptUI"
+    self.Gui.ResetOnSpawn = false
+    self.Gui.IgnoreGuiInset = true
+    self.Gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Shadow
+    self.Shadow = createShadow(self.Gui, UDim2.fromScale(self.Size[1], self.Size[2]), UDim2.new(self.Position[1], 0, self.Position[2], 8), 0.5, UDim.new(0,20))
+
+    -- Main frame
+    self.Main = Instance.new("Frame")
+    self.Main.Name = "Main"
+    self.Main.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.Main.Position = UDim2.new(self.Position[1], 0, self.Position[2], 0)
+    self.Main.Size = UDim2.fromScale(self.Size[1], self.Size[2])
+    self.Main.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    self.Main.BorderSizePixel = 0
+    self.Main.Parent = self.Gui
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0,20)
+    mainCorner.Parent = self.Main
+
+    -- Main stroke
+    self.MainStroke = createStroke(self.Main, Color3.fromRGB(255,255,255), 2, 0.3)
+
+    -- Gradient
+    self.MainGradient = createGradient(self.Main)
+
+    -- Marble
+    self.Marble = createImageLabel(self.Main, UDim2.fromScale(1,1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..self.Theme.MarbleTexture.."&width=678&height=810&format=png", 0.6, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0,20)
+    marbleCorner.Parent = self.Marble
+
+    -- Header
+    self.Header = self:CreateHeader()
+
+    -- Side panel
+    self.Side = self:CreateSidePanel()
+
+    -- Content area (for tabs)
+    self.Content = Instance.new("Frame")
+    self.Content.Name = "Content"
+    self.Content.AnchorPoint = Vector2.new(0,0.5)
+    self.Content.Position = UDim2.new(0.35, 0, 0.5, 0) -- adjusted for side panel width
+    self.Content.Size = UDim2.new(0.6, -10, 0.85, 0) -- fit beside side panel
+    self.Content.BackgroundTransparency = 1
+    self.Content.Parent = self.Main
+
+    -- Close button (minimize)
+    self.CloseButton = self:CreateCloseButton()
+
+    -- Minimized state
+    self.MinimizedFrame = self:CreateMinimizedFrame()
+
+    -- Initially visible
+    self.Visible = true
+
+    return self
+end
+
+function Window:CreateHeader()
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.AnchorPoint = Vector2.new(0.5,0)
+    header.Position = UDim2.new(0.5,0,-0.04,0)
+    header.Size = UDim2.fromScale(0.5,0.09)
+    header.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    header.BorderSizePixel = 0
+    header.Parent = self.Main
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,18)
+    corner.Parent = header
+
+    -- Header shadow
+    local headerShadow = createShadow(header, UDim2.fromScale(0.5,0.09), UDim2.new(0.5, 2, -0.04, 4), 0.4, UDim.new(0,18))
+    headerShadow.Parent = self.Main
+
+    local grad = createGradient(header)
+
+    local marble = createImageLabel(header, UDim2.fromScale(1,1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..self.Theme.MarbleTexture.."&width=678&height=810&format=png", 0.6, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0,18)
+    marbleCorner.Parent = marble
+
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.AnchorPoint = Vector2.new(0.5,0.5)
+    title.Position = UDim2.fromScale(0.5,0.5)
+    title.Size = UDim2.fromScale(0.9,0.8)
+    title.BackgroundTransparency = 1
+    title.Font = self.Theme.Font
+    title.Text = self.Title
+    title.TextScaled = true
+    title.TextColor3 = self.Theme.TextColor
+    title.Parent = header
+
+    self.HeaderTitle = title
+    return header
+end
+
+function Window:CreateSidePanel()
+    local side = Instance.new("Frame")
+    side.Name = "Side"
+    side.AnchorPoint = Vector2.new(1,0.5)
+    side.Position = UDim2.new(0,-12,0.5,0)
+    side.Size = UDim2.fromScale(0.3,0.90)
+    side.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    side.BackgroundTransparency = 0.15
+    side.BorderSizePixel = 0
+    side.Parent = self.Main
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,16)
+    corner.Parent = side
+
+    local sideShadow = createShadow(side, UDim2.fromScale(0.3,0.90), UDim2.new(0,-12,0.5,8), 0.45, UDim.new(0,16))
+    sideShadow.Parent = self.Main
+
+    local grad = createGradient(side)
+
+    local marble = createImageLabel(side, UDim2.fromScale(1,1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..self.Theme.MarbleTexture.."&width=678&height=810&format=png", 0.6, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0,16)
+    marbleCorner.Parent = marble
+
+    local stroke = createStroke(side, Color3.fromRGB(255,255,255), 2, 0.3)
+
+    -- Scroll frame for tabs
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = "TabScroll"
+    scroll.Size = UDim2.new(1,0,1,0)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 4
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(180,120,255)
+    scroll.CanvasSize = UDim2.new(0,0,0,0)
+    scroll.Parent = side
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 12)
+    padding.PaddingBottom = UDim.new(0, 12)
+    padding.PaddingLeft = UDim.new(0, 8)
+    padding.PaddingRight = UDim.new(0, 8)
+    padding.Parent = scroll
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 4)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+    layout.Parent = scroll
+
+    self.TabScroll = scroll
+    self.TabLayout = layout
+    return side
+end
+
+function Window:CreateCloseButton()
+    local btn = Instance.new("ImageButton")
+    btn.Name = "CloseButton"
+    btn.AnchorPoint = Vector2.new(0.5, 0.5)
+    btn.Position = UDim2.new(1, 0, 0, 0)
+    btn.Size = UDim2.fromOffset(56, 56)
+    btn.BackgroundTransparency = 1
+    btn.BorderSizePixel = 0
+    btn.Image = "https://www.roblox.com/asset-thumbnail/image?assetId=114840795551292&width=678&height=810&format=png"
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 10
+    btn.Parent = self.Main
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = btn
+
+    btn.MouseEnter:Connect(function()
+        tween(btn, {Size = UDim2.fromOffset(62, 62)}, 0.15)
+    end)
+    btn.MouseLeave:Connect(function()
+        tween(btn, {Size = UDim2.fromOffset(56, 56)}, 0.15)
+    end)
+
+    -- Minimize logic
+    local selfRef = self
+    btn.MouseButton1Click:Connect(function()
+        selfRef:Minimize()
+    end)
+
+    return btn
+end
+
+function Window:CreateMinimizedFrame()
+    local mf = Instance.new("ImageButton")
+    mf.Name = "MinimizedFrame"
+    mf.AnchorPoint = Vector2.new(1, 0)
+    mf.Position = UDim2.new(1, -20, 0, 20)
+    mf.Size = UDim2.fromOffset(60, 60)
+    mf.BackgroundTransparency = 1
+    mf.BorderSizePixel = 0
+    mf.Visible = false
+    mf.ZIndex = 100
+    mf.Image = "https://www.roblox.com/asset-thumbnail/image?assetId=103591022804634&width=678&height=810&format=png"
+    mf.ScaleType = Enum.ScaleType.Fit
+    mf.Parent = self.Gui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = mf
+
+    local stroke = createStroke(mf, Color3.fromRGB(255,255,255), 2, 0.3)
+
+    local selfRef = self
+    mf.MouseButton1Click:Connect(function()
+        selfRef:Restore()
+    end)
+
+    return mf
+end
+
+function Window:Minimize()
+    local targetPos = UDim2.new(1, -40, 0, 40)
+    local targetSize = UDim2.fromScale(0.05, 0.05)
+    tween(self.Main, {Size = targetSize, Position = targetPos}, 0.3)
+    tween(self.Shadow, {Size = targetSize, Position = targetPos}, 0.3)
+    task.wait(0.3)
+    self.Main.Visible = false
+    self.Shadow.Visible = false
+    self.MinimizedFrame.Visible = true
+    self.MinimizedFrame.Size = UDim2.fromOffset(0, 0)
+    tween(self.MinimizedFrame, {Size = UDim2.fromOffset(60, 60)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+end
+
+function Window:Restore()
+    self.MinimizedFrame.Visible = false
+    self.Main.Size = UDim2.fromScale(self.Size[1], self.Size[2])
+    self.Main.Position = UDim2.new(self.Position[1], 0, self.Position[2], 0)
+    self.Shadow.Size = UDim2.fromScale(self.Size[1], self.Size[2])
+    self.Shadow.Position = UDim2.new(self.Position[1], 0, self.Position[2], 8)
+    self.Main.Visible = true
+    self.Shadow.Visible = true
+    self.Main.Size = UDim2.fromScale(0.05, 0.05)
+    self.Main.Position = UDim2.new(1, -40, 0, 40)
+    self.Shadow.Size = UDim2.fromScale(0.05, 0.05)
+    self.Shadow.Position = UDim2.new(1, -40, 0, 40)
+    tween(self.Main, {Size = UDim2.fromScale(self.Size[1], self.Size[2]), Position = UDim2.new(self.Position[1], 0, self.Position[2], 0)}, 0.5, Enum.EasingStyle.Back)
+    tween(self.Shadow, {Size = UDim2.fromScale(self.Size[1], self.Size[2]), Position = UDim2.new(self.Position[1], 0, self.Position[2], 8)}, 0.5, Enum.EasingStyle.Back)
+end
+
+function Window:CreateTab(options)
+    local tab = {}
+    tab.Title = options.Title or "Tab"
+    tab.Window = self
+    tab.Content = self.Content
+    tab.Components = {}
+
+    -- Create button on side panel
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundTransparency = 0.3
+    btn.BorderSizePixel = 0
+    btn.Text = tab.Title
+    btn.Font = self.Theme.Font
+    btn.TextScaled = true
+    btn.TextColor3 = self.Theme.TextColor
+    btn.Parent = self.TabScroll
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+
+    local grad = createGradient(btn)
+    local marble = createImageLabel(btn, UDim2.fromScale(1,1), UDim2.new(0,0,0,0), "https://www.roblox.com/asset-thumbnail/image?assetId="..self.Theme.MarbleTexture.."&width=678&height=810&format=png", 0.5, Enum.ScaleType.Stretch)
+    local marbleCorner = Instance.new("UICorner")
+    marbleCorner.CornerRadius = UDim.new(0, 10)
+    marbleCorner.Parent = marble
+
+    -- Store
+    tab.Button = btn
+
+    -- Click to switch
+    btn.MouseButton1Click:Connect(function()
+        self:SelectTab(tab)
+    end)
+
+    -- Create a container for this tab's content (hidden initially)
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Size = UDim2.new(1, 0, 1, 0)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.Visible = false
+    contentContainer.Parent = self.Content
+
+    tab.ContentContainer = contentContainer
+
+    -- Store in list
+    table.insert(self.Tabs, tab)
+
+    -- If first tab, select it
+    if #self.Tabs == 1 then
+        self:SelectTab(tab)
+    end
+
+    return tab
+end
+
+function Window:SelectTab(tab)
+    -- Hide all tab content
+    for _, t in ipairs(self.Tabs) do
+        t.ContentContainer.Visible = false
+    end
+    tab.ContentContainer.Visible = true
+    self.CurrentTab = tab
+end
+
+-- Component creators for Tab
+function Window:CreateButton(options)
+    if not self.CurrentTab then return end
+    local btn = Button.new(self.CurrentTab, options)
+    return btn
+end
+
+function Window:CreateToggle(options)
+    if not self.CurrentTab then return end
+    local tog = Toggle.new(self.CurrentTab, options)
+    return tog
+end
+
+function Window:CreateSlider(options)
+    if not self.CurrentTab then return end
+    local sl = Slider.new(self.CurrentTab, options)
+    return sl
+end
+
+function Window:CreateTextbox(options)
+    if not self.CurrentTab then return end
+    local tb = Textbox.new(self.CurrentTab, options)
+    return tb
+end
+
+function Window:CreateLabel(options)
+    if not self.CurrentTab then return end
+    local lb = Label.new(self.CurrentTab, options)
+    return lb
+end
+
+function Window:CreateDropdown(options)
+    if not self.CurrentTab then return end
+    local dd = Dropdown.new(self.CurrentTab, options)
+    return dd
+end
+
+function Window:CreateSection(options)
+    if not self.CurrentTab then return end
+    local sec = Section.new(self.CurrentTab, options)
+    return sec
+end
+
+function Window:CreateDivider(options)
+    if not self.CurrentTab then return end
+    local div = Divider.new(self.CurrentTab, options)
+    return div
+end
+
+-- Expose component constructors on Window
+Window.CreateButton = Window.CreateButton
+Window.CreateToggle = Window.CreateToggle
+Window.CreateSlider = Window.CreateSlider
+Window.CreateTextbox = Window.CreateTextbox
+Window.CreateLabel = Window.CreateLabel
+Window.CreateDropdown = Window.CreateDropdown
+Window.CreateSection = Window.CreateSection
+Window.CreateDivider = Window.CreateDivider
+
+-- // LIBRARY API
+function Library:NewWindow(options)
+    return Window.new(options)
+end
+
+function Library:SetTheme(theme)
+    for k, v in pairs(theme) do
+        Library.DefaultTheme[k] = v
+    end
+end
+
+-- // Return library
 return Library
