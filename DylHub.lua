@@ -56,15 +56,41 @@ local function Tween(obj, props, time, style, direction)
 	return tween
 end
 
+local function GetGradient()
+	local g = Instance.new("UIGradient")
+	g.Rotation = 90
+	g.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110,45,220)),
+		ColorSequenceKeypoint.new(0.45, Color3.fromRGB(176,96,244)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(236,198,255)),
+	}
+	return g
+end
+
+local function AddMarble(obj, assetId, transparency)
+	local img = Instance.new("ImageLabel")
+	img.Size = UDim2.fromScale(1, 1)
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Image = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. assetId .. "&width=678&height=810&format=png"
+	img.ImageTransparency = transparency or 0.6
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Parent = obj
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = obj:FindFirstChild("UICorner") and obj.UICorner.CornerRadius or UDim.new(0, 0)
+	corner.Parent = img
+	return img
+end
+
 -- ---------------------------------------------------------------------
 -- 3. COMPONENTS
 -- ---------------------------------------------------------------------
 
--- 3.1 ButtonFrame – Row Template
+-- 3.1 ButtonFrame – Row Template (no description)
 local ButtonFrame = {}
 ButtonFrame.__index = ButtonFrame
 
-function ButtonFrame.new(parent, title, description, holderSize)
+function ButtonFrame.new(parent, title, holderSize)
 	local self = setmetatable({}, ButtonFrame)
 	
 	self.Main = Create("Frame", {
@@ -83,18 +109,6 @@ function ButtonFrame.new(parent, title, description, holderSize)
 		Text = title or "Title",
 		TextSize = 13,
 		TextColor3 = Theme:GetColor("Text"),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = self.Main,
-	})
-	
-	self.Description = Create("TextLabel", {
-		Size = UDim2.new(0.5, 0, 0, 14),
-		Position = UDim2.new(0, 10, 0, 18),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = description or "",
-		TextSize = 10,
-		TextColor3 = Theme:GetColor("TextDim"),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = self.Main,
 	})
@@ -122,10 +136,10 @@ end
 local Toggle = {}
 Toggle.__index = Toggle
 
-function Toggle.new(parent, title, description, defaultValue, callback)
+function Toggle.new(parent, title, defaultValue, callback)
 	local self = setmetatable({}, Toggle)
 	
-	local row = ButtonFrame.new(parent, title, description, 50)
+	local row = ButtonFrame.new(parent, title, 50)
 	self.Row = row
 	self.Holder = row:GetHolder()
 	self.Value = defaultValue or false
@@ -194,10 +208,10 @@ end
 local Slider = {}
 Slider.__index = Slider
 
-function Slider.new(parent, title, description, min, max, defaultValue, callback)
+function Slider.new(parent, title, min, max, defaultValue, callback)
 	local self = setmetatable({}, Slider)
 	
-	local row = ButtonFrame.new(parent, title, description, 150)
+	local row = ButtonFrame.new(parent, title, 150)
 	self.Row = row
 	self.Holder = row:GetHolder()
 	self.Min = min or 0
@@ -307,20 +321,21 @@ function Slider:GetValue()
 	return self.Value
 end
 
--- 3.4 Dropdown
+-- 3.4 Dropdown (with floating panel)
 local Dropdown = {}
 Dropdown.__index = Dropdown
 
-function Dropdown.new(parent, title, description, options, defaultIndex, callback)
+function Dropdown.new(parent, title, options, defaultIndex, callback)
 	local self = setmetatable({}, Dropdown)
 	
-	local row = ButtonFrame.new(parent, title, description, 160)
+	local row = ButtonFrame.new(parent, title, 160)
 	self.Row = row
 	self.Holder = row:GetHolder()
 	self.Options = options or {"Option 1", "Option 2", "Option 3"}
 	self.SelectedIndex = defaultIndex or 1
 	self.Callback = callback or function() end
 	self.Open = false
+	self.Panel = nil  -- floating panel
 	
 	self.Display = Create("TextButton", {
 		Size = UDim2.new(1, 0, 0, 22),
@@ -354,38 +369,6 @@ function Dropdown.new(parent, title, description, options, defaultIndex, callbac
 		Parent = self.Display,
 	})
 	
-	self.List = Create("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		Position = UDim2.new(0, 0, 1, 2),
-		BackgroundColor3 = Theme:GetColor("Background"),
-		BackgroundTransparency = 0.1,
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		Visible = false,
-		Parent = self.Holder,
-	})
-	local listCorner = Instance.new("UICorner")
-	listCorner.CornerRadius = UDim.new(0, 4)
-	listCorner.Parent = self.List
-	local listStroke = Instance.new("UIStroke")
-	listStroke.Color = Theme:GetColor("Stroke")
-	listStroke.Thickness = 1
-	listStroke.Parent = self.List
-	
-	self.Scroll = Create("ScrollingFrame", {
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		CanvasSize = UDim2.new(0, 0, 0, 0),
-		ScrollBarThickness = 3,
-		Parent = self.List,
-	})
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 2)
-	layout.Parent = self.Scroll
-	
-	self:PopulateOptions()
-	
 	self.Display.MouseButton1Click:Connect(function()
 		self:Toggle()
 	end)
@@ -393,18 +376,102 @@ function Dropdown.new(parent, title, description, options, defaultIndex, callbac
 	return self
 end
 
-function Dropdown:PopulateOptions()
-	for _, child in pairs(self.Scroll:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
+function Dropdown:Toggle()
+	self.Open = not self.Open
+	if self.Open then
+		self:CreatePanel()
+	else
+		self:DestroyPanel()
 	end
+	self.Arrow.Rotation = self.Open and 180 or 0
+end
+
+function Dropdown:CreatePanel()
+	if self.Panel then return end
 	
+	-- Get the main GUI (parent of the dropdown's row)
+	local gui = self.Row.Main.Parent
+	while gui and not gui:IsA("ScreenGui") do
+		gui = gui.Parent
+	end
+	if not gui then return end
+	
+	-- Position the panel to the right of the dropdown display
+	local displayPos = self.Display.AbsolutePosition
+	local displaySize = self.Display.AbsoluteSize
+	local panelWidth = 180
+	local panelHeight = math.min(#self.Options * 26 + 10, 150)
+	
+	-- Create floating panel
+	local panel = Create("Frame", {
+		Size = UDim2.new(0, panelWidth, 0, panelHeight),
+		Position = UDim2.new(0, displayPos.X + displaySize.X + 10, 0, displayPos.Y - 5),
+		BackgroundColor3 = Color3.fromRGB(255,255,255),
+		BackgroundTransparency = 0,
+		BorderSizePixel = 0,
+		ZIndex = 100,
+		Parent = gui,
+	})
+	local panelCorner = Instance.new("UICorner")
+	panelCorner.CornerRadius = UDim.new(0, 8)
+	panelCorner.Parent = panel
+	
+	-- Gradient
+	local grad = GetGradient()
+	grad.Parent = panel
+	
+	-- Marble texture
+	AddMarble(panel, "133709037992585", 0.5)
+	
+	-- White stroke
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255,255,255)
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.4
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = panel
+	
+	-- Shadow behind panel (subtle)
+	local shadow = Create("Frame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.new(0, 4, 0, 4),
+		BackgroundColor3 = Color3.fromRGB(0,0,0),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		ZIndex = -1,
+		Parent = panel,
+	})
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 8)
+	shadowCorner.Parent = shadow
+	
+	-- ScrollingFrame for options
+	local scroll = Create("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		ScrollBarThickness = 3,
+		ZIndex = 2,
+		Parent = panel,
+	})
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 4)
+	pad.PaddingBottom = UDim.new(0, 4)
+	pad.PaddingLeft = UDim.new(0, 4)
+	pad.PaddingRight = UDim.new(0, 4)
+	pad.Parent = scroll
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 2)
+	layout.Parent = scroll
+	
+	-- Populate options
 	local totalHeight = 0
 	for i, option in ipairs(self.Options) do
 		local btn = Create("TextButton", {
 			Size = UDim2.new(1, 0, 0, 22),
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundColor3 = Color3.fromRGB(255,255,255),
 			BackgroundTransparency = 0.95,
 			AutoButtonColor = false,
 			BorderSizePixel = 0,
@@ -413,11 +480,15 @@ function Dropdown:PopulateOptions()
 			TextSize = 12,
 			TextColor3 = Theme:GetColor("Text"),
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = self.Scroll,
+			ZIndex = 3,
+			Parent = scroll,
 		})
-		local padding = Instance.new("UIPadding")
-		padding.PaddingLeft = UDim.new(0, 8)
-		padding.Parent = btn
+		local pad2 = Instance.new("UIPadding")
+		pad2.PaddingLeft = UDim.new(0, 8)
+		pad2.Parent = btn
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = btn
 		
 		if i == self.SelectedIndex then
 			btn.BackgroundColor3 = Theme:GetColor("Accent")
@@ -441,21 +512,16 @@ function Dropdown:PopulateOptions()
 		
 		totalHeight = totalHeight + 22 + 2
 	end
-	self.Scroll.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+	scroll.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+	
+	self.Panel = panel
 end
 
-function Dropdown:Toggle()
-	self.Open = not self.Open
-	local targetHeight = self.Open and math.clamp(#self.Options * 24, 0, 120) or 0
-	
-	self.List.Visible = true
-	local tween = Tween(self.List, {Size = UDim2.new(1, 0, 0, targetHeight)}, 0.15)
-	tween.Completed:Connect(function()
-		if not self.Open then
-			self.List.Visible = false
-		end
-	end)
-	self.Arrow.Rotation = self.Open and 180 or 0
+function Dropdown:DestroyPanel()
+	if self.Panel then
+		self.Panel:Destroy()
+		self.Panel = nil
+	end
 end
 
 function Dropdown:Select(index)
@@ -463,9 +529,8 @@ function Dropdown:Select(index)
 	self.Display.Text = self.Options[index]
 	self.Callback(self.Options[index], index)
 	if self.Open then
-		self:Toggle()
+		self:Toggle() -- closes panel
 	end
-	self:PopulateOptions()
 end
 
 function Dropdown:GetValue()
@@ -542,10 +607,10 @@ end
 local TextBox = {}
 TextBox.__index = TextBox
 
-function TextBox.new(parent, title, description, placeholder, callback)
+function TextBox.new(parent, title, placeholder, callback)
 	local self = setmetatable({}, TextBox)
 	
-	local row = ButtonFrame.new(parent, title, description, 150)
+	local row = ButtonFrame.new(parent, title, 150)
 	self.Row = row
 	self.Holder = row:GetHolder()
 	self.Callback = callback or function() end
@@ -684,29 +749,11 @@ function ConceptUI:Create()
 	mainStroke.Parent = Main
 	
 	-- Gradient
-	local mainGradient = Instance.new("UIGradient")
-	mainGradient.Rotation = 90
-	mainGradient.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110,45,220)),
-		ColorSequenceKeypoint.new(0.45, Color3.fromRGB(176,96,244)),
-		ColorSequenceKeypoint.new(1.00, Color3.fromRGB(236,198,255)),
-	}
+	local mainGradient = GetGradient()
 	mainGradient.Parent = Main
 	
 	-- Marble texture
-	local marble = Create("ImageLabel", {
-		Name = "MarbleTexture",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Image = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. self.Config.MarbleTexture .. "&width=678&height=810&format=png",
-		ImageTransparency = 0.6,
-		ScaleType = Enum.ScaleType.Stretch,
-		Parent = Main,
-	})
-	local marbleCorner = Instance.new("UICorner")
-	marbleCorner.CornerRadius = UDim.new(0, 20)
-	marbleCorner.Parent = marble
+	AddMarble(Main, self.Config.MarbleTexture, 0.6)
 	
 	-- Header shadow
 	local headerShadow = Create("Frame", {
@@ -737,22 +784,9 @@ function ConceptUI:Create()
 	local headerCorner = Instance.new("UICorner")
 	headerCorner.CornerRadius = UDim.new(0, 18)
 	headerCorner.Parent = Header
-	local headerGradient = mainGradient:Clone()
+	local headerGradient = GetGradient()
 	headerGradient.Parent = Header
-	
-	local headerMarble = Create("ImageLabel", {
-		Name = "HeaderMarbleTexture",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Image = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. self.Config.MarbleTexture .. "&width=678&height=810&format=png",
-		ImageTransparency = 0.6,
-		ScaleType = Enum.ScaleType.Stretch,
-		Parent = Header,
-	})
-	local headerMarbleCorner = Instance.new("UICorner")
-	headerMarbleCorner.CornerRadius = UDim.new(0, 18)
-	headerMarbleCorner.Parent = headerMarble
+	AddMarble(Header, self.Config.MarbleTexture, 0.6)
 	
 	self.TitleLabel = Create("TextLabel", {
 		Name = "Title",
@@ -844,22 +878,9 @@ function ConceptUI:Create()
 	sideStroke.Transparency = 0.3
 	sideStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	sideStroke.Parent = Side
-	local sideGradient = mainGradient:Clone()
+	local sideGradient = GetGradient()
 	sideGradient.Parent = Side
-	
-	local sideMarble = Create("ImageLabel", {
-		Name = "SideMarbleTexture",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Image = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. self.Config.MarbleTexture .. "&width=678&height=810&format=png",
-		ImageTransparency = 0.6,
-		ScaleType = Enum.ScaleType.Stretch,
-		Parent = Side,
-	})
-	local sideMarbleCorner = Instance.new("UICorner")
-	sideMarbleCorner.CornerRadius = UDim.new(0, 16)
-	sideMarbleCorner.Parent = sideMarble
+	AddMarble(Side, self.Config.MarbleTexture, 0.6)
 	
 	-- ScrollingFrame for tabs
 	local scroll = Create("ScrollingFrame", {
@@ -1019,33 +1040,10 @@ function ConceptUI:PopulateTabs()
 		btnCorner.CornerRadius = UDim.new(0, 10)
 		btnCorner.Parent = Button
 		
-		-- Gradient
-		local btnGrad = Instance.new("UIGradient")
-		btnGrad.Rotation = 90
-		btnGrad.Color = ColorSequence.new{
-			ColorSequenceKeypoint.new(0.00, Color3.fromRGB(110,45,220)),
-			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(176,96,244)),
-			ColorSequenceKeypoint.new(1.00, Color3.fromRGB(236,198,255)),
-		}
+		local btnGrad = GetGradient()
 		btnGrad.Parent = Button
+		AddMarble(Button, self.Config.MarbleTexture, 0.5)
 		
-		-- Image overlay
-		local btnImage = Create("ImageLabel", {
-			Name = "ButtonImage",
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			Image = "https://www.roblox.com/asset-thumbnail/image?assetId=" .. self.Config.MarbleTexture .. "&width=678&height=810&format=png",
-			ImageTransparency = 0.5,
-			ScaleType = Enum.ScaleType.Stretch,
-			ZIndex = 0,
-			Parent = Button,
-		})
-		local imgCorner = Instance.new("UICorner")
-		imgCorner.CornerRadius = UDim.new(0, 10)
-		imgCorner.Parent = btnImage
-		
-		-- Text shadow
 		local textShadow = Create("TextLabel", {
 			Name = "TextShadow",
 			Size = UDim2.fromScale(1, 1),
@@ -1092,12 +1090,10 @@ function ConceptUI:PopulateTabs()
 		Button.MouseButton1Click:Connect(AnimateButton)
 	end
 	
-	-- Select first tab by default
 	if #self.Config.Tabs > 0 then
 		SelectTab(1)
 	end
 	
-	-- Update canvas size
 	task.wait(0.1)
 	local children = self.SidePanel:GetChildren()
 	local totalHeight = 0
@@ -1110,10 +1106,6 @@ function ConceptUI:PopulateTabs()
 end
 
 function ConceptUI:GetTabPanel(tabName)
-	-- Find the tab button container by name, return its parent? Actually we need a container for controls.
-	-- In this design, each tab doesn't have a separate panel; controls are added directly to the main panel.
-	-- We'll store a dictionary of tab names to frames where controls can be placed.
-	-- For simplicity, we'll create a frame for each tab when first accessed.
 	if not self.TabPanels then
 		self.TabPanels = {}
 	end
@@ -1125,10 +1117,6 @@ function ConceptUI:GetTabPanel(tabName)
 			Visible = false,
 			Parent = self.Main,
 		})
-		-- Position it to the right of the side panel
-		-- We need to offset it; but we'll just use the whole main area except side panel.
-		-- For simplicity, we'll place it in the main area, but we'll need to handle layout.
-		-- We'll create a UIListLayout inside to stack controls.
 		local list = Instance.new("UIListLayout")
 		list.Padding = UDim.new(0, 5)
 		list.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -1147,40 +1135,35 @@ end
 function ConceptUI:AddToggle(config)
 	local tab = self:GetTabPanel(config.Tab)
 	if tab then
-		local toggle = Toggle.new(tab, config.Title, config.Description, config.Default, config.Callback)
-		return toggle
+		return Toggle.new(tab, config.Title, config.Default, config.Callback)
 	end
 end
 
 function ConceptUI:AddSlider(config)
 	local tab = self:GetTabPanel(config.Tab)
 	if tab then
-		local slider = Slider.new(tab, config.Title, config.Description, config.Min, config.Max, config.Default, config.Callback)
-		return slider
+		return Slider.new(tab, config.Title, config.Min, config.Max, config.Default, config.Callback)
 	end
 end
 
 function ConceptUI:AddDropdown(config)
 	local tab = self:GetTabPanel(config.Tab)
 	if tab then
-		local dropdown = Dropdown.new(tab, config.Title, config.Description, config.Options, config.Default, config.Callback)
-		return dropdown
+		return Dropdown.new(tab, config.Title, config.Options, config.Default, config.Callback)
 	end
 end
 
 function ConceptUI:AddButton(config)
 	local tab = self:GetTabPanel(config.Tab)
 	if tab then
-		local button = Button.new(tab, config.Title, config.Callback, config.Icon)
-		return button
+		return Button.new(tab, config.Title, config.Callback, config.Icon)
 	end
 end
 
 function ConceptUI:AddTextBox(config)
 	local tab = self:GetTabPanel(config.Tab)
 	if tab then
-		local textbox = TextBox.new(tab, config.Title, config.Description, config.Placeholder, config.Callback)
-		return textbox
+		return TextBox.new(tab, config.Title, config.Placeholder, config.Callback)
 	end
 end
 
