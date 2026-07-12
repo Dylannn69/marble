@@ -1,16 +1,16 @@
 --[[
    UI Library – Full‑Width Components
-   All components span 100% of the content area.
+   Fixed: nil Theme, 404 images.
 --]]
 
 local Library = {}
 Library.__index = Library
 
---// ========== CONSTANTS ==========
+--// ========== CONSTANTS (valid assets) ==========
 local ASSETS = {
-    MarbleTexture = "133709037992585",
-    CloseButtonImage = "114840795551292",
-    MinimizedImage = "103591022804634",
+    MarbleTexture = "98675594889303",        -- works
+    CloseButtonImage = "114840795551292",    -- your close image
+    MinimizedImage = "103591022804634",      -- your minimized image
 }
 
 --// ========== THEME ==========
@@ -90,7 +90,7 @@ function Library:CreateWindow(options)
     }
     MainGradient.Parent = Main
 
-    -- Marble Texture
+    -- Marble Texture (using valid asset)
     local MarbleTexture = Instance.new("ImageLabel")
     MarbleTexture.Size = UDim2.fromScale(1,1)
     MarbleTexture.BackgroundTransparency = 1
@@ -277,7 +277,6 @@ function Library:CreateWindow(options)
     ContentArea.ClipsDescendants = true
     ContentArea.Parent = Main
 
-    -- Content container with padding
     local ContentPad = Instance.new("UIPadding")
     ContentPad.PaddingTop = UDim.new(0,20)
     ContentPad.PaddingBottom = UDim.new(0,20)
@@ -285,7 +284,6 @@ function Library:CreateWindow(options)
     ContentPad.PaddingRight = UDim.new(0,20)
     ContentPad.Parent = ContentArea
 
-    -- Scrolling frame for content
     local ContentScroll = Instance.new("ScrollingFrame")
     ContentScroll.Name = "ContentScroll"
     ContentScroll.Size = UDim2.new(1,0, 1,0)
@@ -319,16 +317,11 @@ function Library:CreateWindow(options)
         Theme = theme,
         Size = size,
         Position = pos,
+        MainGradient = MainGradient,   -- store for components
+        Assets = ASSETS,
     }
 
     --// ===== MINIMIZE / RESTORE =====
-    local function TweenObjects(objects, props, tweenInfo)
-        for _, obj in pairs(objects) do
-            if obj and obj.Parent then
-                TweenService:Create(obj, tweenInfo, props):Play()
-            end
-        end
-    end
     local TweenService = game:GetService("TweenService")
 
     CloseBtn.MouseButton1Click:Connect(function()
@@ -368,7 +361,7 @@ function Library:CreateWindow(options)
         local tabTitle = options.Title or "Tab"
         local tabId = #self.Tabs + 1
 
-        -- Tab button (side panel)
+        -- Tab button
         local Container = Instance.new("Frame")
         Container.Name = "TabContainer_"..tabId
         Container.Size = UDim2.new(0.9, 0, 0, 42)
@@ -402,13 +395,13 @@ function Library:CreateWindow(options)
         local btnc = Instance.new("UICorner")
         btnc.CornerRadius = UDim.new(0,10)
         btnc.Parent = btn
-        local btnGrad = MainGradient:Clone()
+        local btnGrad = self.MainGradient:Clone()
         btnGrad.Parent = btn
         local btnImg = Instance.new("ImageLabel")
         btnImg.Size = UDim2.fromScale(1,1)
         btnImg.BackgroundTransparency = 1
         btnImg.BorderSizePixel = 0
-        btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..ASSETS.MarbleTexture.."&width=678&height=810&format=png"
+        btnImg.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="..self.Assets.MarbleTexture.."&width=678&height=810&format=png"
         btnImg.ImageTransparency = 0.5
         btnImg.ScaleType = Enum.ScaleType.Stretch
         btnImg.ZIndex = 0
@@ -442,7 +435,7 @@ function Library:CreateWindow(options)
         mainTxt.ZIndex = 3
         mainTxt.Parent = btn
 
-        -- Content frame for this tab
+        -- Content frame
         local contentFrame = Instance.new("Frame")
         contentFrame.Name = "TabContent_"..tabId
         contentFrame.Size = UDim2.new(1,0, 1,0)
@@ -450,13 +443,11 @@ function Library:CreateWindow(options)
         contentFrame.BorderSizePixel = 0
         contentFrame.Visible = false
         contentFrame.Parent = self.ContentScroll
-        -- layout inside this frame (list)
         local tabLayout = Instance.new("UIListLayout")
         tabLayout.Padding = UDim.new(0,8)
         tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
         tabLayout.Parent = contentFrame
-        -- padding
         local tabPad = Instance.new("UIPadding")
         tabPad.PaddingTop = UDim.new(0,4)
         tabPad.PaddingBottom = UDim.new(0,4)
@@ -464,7 +455,6 @@ function Library:CreateWindow(options)
         tabPad.PaddingRight = UDim.new(0,8)
         tabPad.Parent = contentFrame
 
-        -- Tab object
         local tabObj = {
             Id = tabId,
             Title = tabTitle,
@@ -476,7 +466,6 @@ function Library:CreateWindow(options)
             Active = false,
         }
 
-        -- Click to switch tab
         btn.MouseButton1Click:Connect(function()
             self:SwitchTab(tabId)
         end)
@@ -484,34 +473,37 @@ function Library:CreateWindow(options)
         table.insert(self.Tabs, tabObj)
         self:UpdateCanvas()
 
-        -- Return API methods
+        -- API for this tab (capture theme, MainGradient, Assets)
+        local theme = self.Theme
+        local gradient = self.MainGradient
+        local assets = self.Assets
+
         local api = {}
 
         function api:CreateButton(options)
-            return CreateButton(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateButton(options, contentFrame, theme, gradient, assets)
         end
 
         function api:CreateToggle(options)
-            return CreateToggle(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateToggle(options, contentFrame, theme, gradient, assets)
         end
 
         function api:CreateSlider(options)
-            return CreateSlider(options, contentFrame, self.Theme, MainGradient)
+            return CreateSlider(options, contentFrame, theme, gradient)
         end
 
         function api:CreateTextbox(options)
-            return CreateTextbox(options, contentFrame, self.Theme, MainGradient, ASSETS)
+            return CreateTextbox(options, contentFrame, theme, gradient, assets)
         end
 
         function api:CreateLabel(options)
-            return CreateLabel(options, contentFrame, self.Theme)
+            return CreateLabel(options, contentFrame, theme)
         end
 
         function api:CreateSection(options)
-            return CreateSection(options, contentFrame, self.Theme)
+            return CreateSection(options, contentFrame, theme)
         end
 
-        -- Activate first tab
         if #self.Tabs == 1 then
             self:SwitchTab(1)
         end
@@ -569,7 +561,7 @@ function Library:CreateWindow(options)
     return self
 end
 
---// ========== COMPONENT CREATORS (FULL WIDTH) ==========
+--// ========== COMPONENT CREATORS ==========
 
 --// BUTTON
 local function CreateButton(options, parent, theme, gradient, assets)
@@ -578,7 +570,7 @@ local function CreateButton(options, parent, theme, gradient, assets)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 44)  -- FULL WIDTH
+    container.Size = UDim2.new(1, 0, 0, 44)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -678,7 +670,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 44)  -- FULL WIDTH
+    container.Size = UDim2.new(1, 0, 0, 44)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -740,7 +732,7 @@ local function CreateToggle(options, parent, theme, gradient, assets)
 end
 
 --// SLIDER
-local function CreateSlider(options, parent, theme)
+local function CreateSlider(options, parent, theme, gradient)
     options = options or {}
     local text = options.Text or "Slider"
     local min = options.Min or 0
@@ -749,7 +741,7 @@ local function CreateSlider(options, parent, theme)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 60)  -- FULL WIDTH
+    container.Size = UDim2.new(1, 0, 0, 60)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -866,7 +858,7 @@ local function CreateTextbox(options, parent, theme, gradient, assets)
     local callback = options.Callback or function() end
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 42)  -- FULL WIDTH
+    container.Size = UDim2.new(1, 0, 0, 42)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -910,14 +902,14 @@ local function CreateTextbox(options, parent, theme, gradient, assets)
     return obj
 end
 
---// LABEL / PARAGRAPH
+--// LABEL
 local function CreateLabel(options, parent, theme)
     options = options or {}
     local text = options.Text or "Label"
     local isParagraph = options.Paragraph or false
 
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, isParagraph and 60 or 30)  -- FULL WIDTH
+    label.Size = UDim2.new(1, 0, 0, isParagraph and 60 or 30)
     label.BackgroundTransparency = 1
     label.BorderSizePixel = 0
     label.Font = theme.Font
@@ -936,13 +928,13 @@ local function CreateLabel(options, parent, theme)
     return obj
 end
 
---// SECTION / DIVIDER
+--// SECTION
 local function CreateSection(options, parent, theme)
     options = options or {}
     local text = options.Text or ""
 
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 30)  -- FULL WIDTH
+    container.Size = UDim2.new(1, 0, 0, 30)
     container.BackgroundTransparency = 1
     container.BorderSizePixel = 0
     container.Parent = parent
@@ -980,5 +972,4 @@ local function CreateSection(options, parent, theme)
     return obj
 end
 
---// ========== RETURN LIBRARY ==========
 return Library
