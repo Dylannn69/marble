@@ -1,4 +1,4 @@
--- ConceptUI.lua
+-- ConceptUI.lua (Full Library with API)
 
 local ConceptUI = {}
 ConceptUI.__index = ConceptUI
@@ -8,6 +8,34 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+
+-- Signal class for events
+local Signal = {}
+Signal.__index = Signal
+
+function Signal.new()
+    return setmetatable({_callbacks = {}}, Signal)
+end
+
+function Signal:Connect(callback)
+    table.insert(self._callbacks, callback)
+    return {
+        Disconnect = function()
+            for i, cb in ipairs(self._callbacks) do
+                if cb == callback then
+                    table.remove(self._callbacks, i)
+                    break
+                end
+            end
+        end
+    }
+end
+
+function Signal:Fire(...)
+    for _, callback in ipairs(self._callbacks) do
+        task.spawn(callback, ...)
+    end
+end
 
 -- Default Theme
 local DefaultTheme = {
@@ -28,8 +56,6 @@ local DefaultTheme = {
 -- 1. Core Design Functions
 --=============================================================================
 
--- Create(className, props, children)
--- Builds a GUI hierarchy in one call
 local function Create(className, props, children)
     local obj = Instance.new(className)
     if props then
@@ -45,8 +71,6 @@ local function Create(className, props, children)
     return obj
 end
 
--- CreateTween(Configs)
--- Animation wrapper using TweenService
 local function CreateTween(Configs)
     local Instance = Configs[1] or Configs.Instance
     local Prop = Configs[2] or Configs.Prop
@@ -65,8 +89,6 @@ local function CreateTween(Configs)
     return Tween
 end
 
--- MakeDrag(instance)
--- Makes any GUI element draggable
 local function MakeDrag(Instance)
     Instance.Active = true
     Instance.AutoButtonColor = false
@@ -78,7 +100,6 @@ local function MakeDrag(Instance)
             StartPos = Instance.Position
             DragStart = Input.Position
             
-            -- Create a drag connection
             local connection
             connection = RunService.RenderStepped:Connect(function()
                 if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
@@ -102,8 +123,6 @@ local function MakeDrag(Instance)
     return Instance
 end
 
--- ButtonFrame(title, description, holderSize)
--- Reusable row template for all controls
 local function ButtonFrame(parent, Title, Description, HolderSize, theme)
     theme = theme or DefaultTheme
     
@@ -115,7 +134,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, theme)
         Parent = parent
     })
     
-    -- Title Label
     local titleLabel = Create("TextLabel", {
         Text = Title or "Title",
         TextColor3 = theme.Text,
@@ -128,7 +146,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, theme)
         Parent = main
     })
     
-    -- Description Label
     local descLabel = nil
     if Description and Description ~= "" then
         descLabel = Create("TextLabel", {
@@ -144,7 +161,6 @@ local function ButtonFrame(parent, Title, Description, HolderSize, theme)
         })
     end
     
-    -- Holder Frame (right side for control)
     local holder = Create("Frame", {
         Size = UDim2.new(0, HolderSize or 120, 1, 0),
         Position = UDim2.new(1, -10, 0.5, 0),
@@ -162,7 +178,7 @@ local function ButtonFrame(parent, Title, Description, HolderSize, theme)
 end
 
 --=============================================================================
--- 2. Component: Toggle
+-- 2. Components
 --=============================================================================
 
 function ConceptUI:Toggle(parent, title, description, default, callback)
@@ -170,7 +186,6 @@ function ConceptUI:Toggle(parent, title, description, default, callback)
     local row = ButtonFrame(parent, title, description, 50, theme)
     local state = default or false
     
-    -- Switch background
     local switch = Create("TextButton", {
         Size = UDim2.new(0, 35, 0, 18),
         BackgroundColor3 = theme.Stroke,
@@ -180,7 +195,6 @@ function ConceptUI:Toggle(parent, title, description, default, callback)
     })
     Create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = switch })
     
-    -- Knob
     local knob = Create("Frame", {
         Size = UDim2.new(0, 14, 0, 14),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -191,7 +205,6 @@ function ConceptUI:Toggle(parent, title, description, default, callback)
     })
     Create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = knob })
     
-    -- Update function
     local function UpdateToggle(newState)
         state = newState
         local targetPos = state and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
@@ -217,10 +230,6 @@ function ConceptUI:Toggle(parent, title, description, default, callback)
     }
 end
 
---=============================================================================
--- 3. Component: Slider
---=============================================================================
-
 function ConceptUI:Slider(parent, title, description, min, max, default, callback)
     local theme = self.Theme
     min = min or 0
@@ -231,7 +240,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
     local value = default
     local dragging = false
     
-    -- Bar background
     local bar = Create("Frame", {
         Size = UDim2.new(1, -20, 0, 4),
         BackgroundColor3 = theme.Stroke,
@@ -242,7 +250,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
     })
     Create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = bar })
     
-    -- Fill
     local fill = Create("Frame", {
         Size = UDim2.fromScale(0.5, 1),
         BackgroundColor3 = theme.Accent,
@@ -251,7 +258,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
     })
     Create("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = fill })
     
-    -- Knob
     local knob = Create("Frame", {
         Size = UDim2.new(0, 14, 0, 14),
         BackgroundColor3 = Color3.fromRGB(220, 220, 220),
@@ -268,7 +274,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
         Parent = knob
     })
     
-    -- Value Label
     local valueLabel = Create("TextLabel", {
         Text = tostring(math.floor(value)),
         TextColor3 = theme.Text,
@@ -282,7 +287,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
         Parent = row.Holder
     })
     
-    -- Update function
     local function UpdateSlider(newValue)
         value = math.clamp(newValue, min, max)
         local percent = (value - min) / (max - min)
@@ -294,7 +298,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
         if callback then callback(value) end
     end
     
-    -- Drag handling
     local function GetMousePosition()
         local mouse = Players.LocalPlayer:GetMouse()
         local barPos = bar.AbsolutePosition
@@ -336,10 +339,6 @@ function ConceptUI:Slider(parent, title, description, min, max, default, callbac
     }
 end
 
---=============================================================================
--- 4. Component: Dropdown
---=============================================================================
-
 function ConceptUI:Dropdown(parent, title, description, options, default, callback)
     local theme = self.Theme
     options = options or {}
@@ -347,7 +346,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
     local selected = default or options[1]
     local open = false
     
-    -- Display Box
     local display = Create("TextButton", {
         Text = selected or "Select...",
         TextColor3 = theme.Text,
@@ -368,7 +366,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
         Parent = display
     })
     
-    -- Arrow
     local arrow = Create("ImageLabel", {
         Image = "rbxassetid://10709791523",
         Size = UDim2.new(0, 12, 0, 12),
@@ -378,7 +375,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
         Parent = display
     })
     
-    -- Dropdown List
     local list = Create("Frame", {
         Size = UDim2.new(1, 0, 0, 0),
         Position = UDim2.new(0, 0, 1, 2),
@@ -396,7 +392,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
         Parent = list
     })
     
-    -- Scroll content
     local scroll = Create("ScrollingFrame", {
         Size = UDim2.new(1, 0, 0, 0),
         BackgroundTransparency = 1,
@@ -421,7 +416,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
         Parent = scroll
     })
     
-    -- Populate options
     for _, option in ipairs(options) do
         local optBtn = Create("TextButton", {
             Text = option,
@@ -490,10 +484,6 @@ function ConceptUI:Dropdown(parent, title, description, options, default, callba
     }
 end
 
---=============================================================================
--- 5. Component: Button
---=============================================================================
-
 function ConceptUI:Button(parent, title, description, callback)
     local theme = self.Theme
     local row = ButtonFrame(parent, title, description, 0, theme)
@@ -509,7 +499,6 @@ function ConceptUI:Button(parent, title, description, callback)
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = btn })
     
-    -- Bring title/disc to front
     row.Title.ZIndex = 2
     if row.Description then row.Description.ZIndex = 2 end
     
@@ -530,10 +519,6 @@ function ConceptUI:Button(parent, title, description, callback)
     
     return btn
 end
-
---=============================================================================
--- 6. Component: TextBox
---=============================================================================
 
 function ConceptUI:TextBox(parent, title, description, placeholder, callback)
     local theme = self.Theme
@@ -577,14 +562,70 @@ function ConceptUI:TextBox(parent, title, description, placeholder, callback)
 end
 
 --=============================================================================
--- 7. Main UI Builder
+-- 3. UI Control Methods (API)
+--=============================================================================
+
+function ConceptUI:Destroy()
+    if self.Gui then
+        self.Gui:Destroy()
+    end
+    if self.OnClose then
+        self.OnClose:Fire()
+    end
+end
+
+function ConceptUI:Minimize()
+    if not self.Main then return end
+    local targetSize = UDim2.fromOffset(self.Main.AbsoluteSize.X, 40)
+    CreateTween({self.Main, "Size", targetSize, 0.3})
+    self._isMinimized = true
+    if self.OnMinimize then
+        self.OnMinimize:Fire()
+    end
+end
+
+function ConceptUI:Restore()
+    if not self.Main then return end
+    local targetSize = self.Config.Size or UDim2.fromScale(0.35, 0.6)
+    CreateTween({self.Main, "Size", targetSize, 0.3})
+    self._isMinimized = false
+    if self.OnRestore then
+        self.OnRestore:Fire()
+    end
+end
+
+function ConceptUI:SetTheme(newTheme)
+    self.Theme = newTheme
+    -- Rebuild UI with new theme (simplified - in practice you'd update all elements)
+    print("Theme updated! (Full rebuild required for all elements)")
+end
+
+function ConceptUI:ToggleVisibility()
+    if self.Gui then
+        self.Gui.Enabled = not self.Gui.Enabled
+    end
+end
+
+function ConceptUI:IsVisible()
+    return self.Gui and self.Gui.Enabled or false
+end
+
+function ConceptUI:IsMinimized()
+    return self._isMinimized or false
+end
+
+--=============================================================================
+-- 4. Main UI Builder
 --=============================================================================
 
 function ConceptUI:BuildUI()
     local gui = self.Gui
     local theme = self.Theme
     
-    -- Main Window
+    self.OnMinimize = Signal.new()
+    self.OnRestore = Signal.new()
+    self.OnClose = Signal.new()
+    
     local Main = Create("Frame", {
         Name = "Main",
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -611,10 +652,8 @@ function ConceptUI:BuildUI()
         Parent = Main
     })
     
-    -- Make draggable
     MakeDrag(Main)
     
-    -- Header
     local Header = Create("Frame", {
         Name = "Header",
         AnchorPoint = Vector2.new(0.5, 0),
@@ -627,7 +666,6 @@ function ConceptUI:BuildUI()
     })
     Create("UICorner", { CornerRadius = UDim.new(0, 16), Parent = Header })
     
-    -- Title
     local titleLabel = Create("TextLabel", {
         Text = self.Config.Title or "Concept UI",
         TextColor3 = theme.Text,
@@ -641,7 +679,6 @@ function ConceptUI:BuildUI()
         Parent = Header
     })
     
-    -- Close Button
     local closeBtn = Create("ImageButton", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -12, 0.5, 0),
@@ -663,10 +700,37 @@ function ConceptUI:BuildUI()
         CreateTween({closeBtn, "Size", UDim2.fromOffset(28, 28), 0.15})
     end)
     closeBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
+        self:Destroy()
     end)
     
-    -- Content Area
+    -- Minimize button
+    local minBtn = Create("ImageButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -48, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://10709791523",
+        ImageColor3 = theme.TextMuted,
+        ImageRectSize = Vector2.new(12, 2),
+        BorderSizePixel = 0,
+        Parent = Header
+    })
+    Create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = minBtn })
+    
+    minBtn.MouseEnter:Connect(function()
+        minBtn.ImageColor3 = theme.Text
+    end)
+    minBtn.MouseLeave:Connect(function()
+        minBtn.ImageColor3 = theme.TextMuted
+    end)
+    minBtn.MouseButton1Click:Connect(function()
+        if self:IsMinimized() then
+            self:Restore()
+        else
+            self:Minimize()
+        end
+    end)
+    
     local Content = Create("Frame", {
         Name = "Content",
         Size = UDim2.new(1, -16, 1, -56),
@@ -675,7 +739,6 @@ function ConceptUI:BuildUI()
         Parent = Main
     })
     
-    -- Scrollable Content
     local scrollContent = Create("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
@@ -708,15 +771,15 @@ function ConceptUI:BuildUI()
 end
 
 --=============================================================================
--- 8. Constructor
+-- 5. Constructor
 --=============================================================================
 
 function ConceptUI.new(config)
     local self = setmetatable({}, ConceptUI)
     self.Config = config or {}
     self.Theme = config.Theme or DefaultTheme
+    self._isMinimized = false
     
-    -- Create GUI
     local player = Players.LocalPlayer
     local gui = Create("ScreenGui", {
         Name = "ConceptUI",
